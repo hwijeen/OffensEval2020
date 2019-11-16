@@ -3,10 +3,12 @@ import logging
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
+from model import BertClassifier, BertAvgPooling
 
 # TODO: logging
 logger = logging.getLogger(__name__)
 
+task_to_col_idx = {'A':2, 'B':3, 'C':4}
 
 class BERTField(Field):
     """
@@ -30,20 +32,18 @@ class Data(object):
     """
     Holds Datasets, Iterators.
     """
-    def __init__(self, data_dir, preprocessing, bert_tok, batch_size, device):
+    def __init__(self, data_dir, task, preprocessing, bert_tok, batch_size,
+                 device):
         self.train_path = os.path.join(data_dir, 'olid-training-v1.0.tsv')
         self.test_path = os.path.join(data_dir, 'testset-levela.tsv') # same for a, b, c
         self.device = device
-        self.build_dataset(preprocessing, bert_tok)
+        self.build_dataset(task, preprocessing, bert_tok)
         self.build_iterator(batch_size, device)
 
     # TODO: Strafied split
-    def build_dataset(self, preprocessing, bert_tok):
+    def build_dataset(self, task, preprocessing, bert_tok):
 
         def build_field():
-            """
-            Each field represents a column of raw data.
-            """
             ID = RawField()
             TWEET = BERTField(bert_tok.encode, include_lengths=True,
                               use_vocab=False, batch_first=True,
@@ -51,24 +51,19 @@ class Data(object):
                               tokenize=bert_tok.tokenize,
                               pad_token=bert_tok.pad_token,
                               unk_token=bert_tok.unk_token)
-            LABELA = Field(sequential=False, unk_token=None, pad_token=None)
-            LABELB = Field(sequential=False, unk_token=None, pad_token=None)
-            LABELC = Field(sequential=False, unk_token=None, pad_token=None)
-            fields = [('id', ID), ('tweet', TWEET), ('labela', LABELA),
-                      ('labelb', LABELB), ('labelc', LABELC)]
+            fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
+                      ('NULL', None), ('NULL', None)]
+            LABEL = Field(sequential=False, unk_token=None, pad_token=None)
+            fields[task_to_col_idx[task]] = ('label', LABEL)
             return fields
 
         def build_label_vocab():
-            """
-            Build vocab to convert labels into indexes.
-            """
-            for name, field in fields:
-                if 'label' in name:
-                    field.build_vocab(self.train)
+            self.train.fields['label'].build_vocab(self.train)
 
         fields = build_field()
         train_val = TabularDataset(self.train_path, 'tsv', fields,
-                                   skip_header=True)
+                                   skip_header=True,
+                                   filter_pred=lambda x: x.label is not 'NULL')
         self.train, self.val = train_val.split(split_ratio=0.8)
         build_label_vocab()
         self.test = TabularDataset(self.test_path, 'tsv', fields[:2],
@@ -81,7 +76,7 @@ class Data(object):
         BucketIterator.splits((self.train, self.val, self.test),
                               batch_size=batch_size,
                               sort_key=lambda x: len(x.tweet),
-                              sort_within_batch=True, repeat=False,
+                              sort_within_batch=True, repeat=True,
                               device=device)
 
 
@@ -91,6 +86,7 @@ if __name__ == "__main__":
     from utils import *
 
     data_dir = 'data/'
+    task = 'A'
     batch_size = 32
     device = torch.device('cuda')
     preprocessing = None
@@ -98,7 +94,7 @@ if __name__ == "__main__":
     model = BertModel.from_pretrained('bert-base-uncased')
 
     # Build data object
-    data = Data(data_dir, preprocessing, bert_tok, batch_size, device)
+    data = Data(data_dir, task, preprocessing, bert_tok, batch_size, device)
 
     # See how targets are mapped to index
     print_label_vocab(data)
@@ -108,13 +104,13 @@ if __name__ == "__main__":
         # A batch has multiple attiributes
         id = batch.id # list
         tweet, lengths = batch.tweet # two torch.Tensor
-        labela, labelb, labelc = batch.labela, batch.labelb, batch.labelc # torch.Tensor
+        label = batch.label # torch.Tensor
         # See size of each tensors
         print_shape(batch)
 
         # Example Usage
         # logits = model(tweet)
-        # loss = loss_fn(logits, labela)
+        # loss = loss_fn(logits, label)
         # loss.backward()
 
         # Use tokenizer.convert_ids_to_tokens / decoder to convert word_ids to list / string.
@@ -122,7 +118,6 @@ if __name__ == "__main__":
             sent = tweet[idx].cpu().numpy().tolist()
             tokens = bert_tok.convert_ids_to_tokens(sent)
             text = bert_tok.decode(sent)
-            print(f'\nTweet num: {id[idx]}\nText: {text}\nTokens: {tokens}\nLabelA: {labela[idx]}'
-                  f'\nLabelB: {labelb[idx]}\nLabelC: {labelc[idx]}')
+            print(f'\nTweet num: {id[idx]}\nText: {text}\nTokens: {tokens}\nLabel: {label[idx]}')
         break
 
