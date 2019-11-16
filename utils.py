@@ -1,3 +1,4 @@
+import torch
 
 def lines(func):
     """
@@ -29,3 +30,11 @@ def print_shape(batch):
             tensor = getattr(batch, name)
             size = tensor.size()
         print(f'batch.{name} is a {type(tensor)} of size {size}')
+
+def sequence_mask(lengths):
+    # make a mask matrix corresponding to given length
+    # from https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/ops/array_ops.py
+    row_vector = torch.arange(0, max(lengths), device=lengths.device) # (L,)
+    matrix = lengths.unsqueeze(-1) # (B, 1)
+    result = row_vector < matrix # 1 for real tokens
+    return result # (B, L)

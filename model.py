@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import BertModel, BertTokenizer
+from utils import sequence_mask
 
 # TODO: NUM_CLASS should be specified according to task
 NUM_CLASS = 2
@@ -44,8 +45,15 @@ class BertAvgPooling(BertClassifier):
         
         """
         x, _ = self.bert(x)                     # (batch_size, seq_length, hidden_size)
+        x = x.masked_fill_(sequence_mask(length).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=1)                 # (batch_size, 1, hidden_size)
         x = x.squeeze()                         # (batch_size, hidden_size)
-        x = x / length.unsqueeze(1).float()
+        x = x / length.unsqueeze(-1).float()
         x = self.out(x)                         # (batch_size, NUM_CLASS)
         return x
+
+if __name__ == "__main__":
+    data_dir = 'data/'
+    batch_size = 32
+    device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
+    
