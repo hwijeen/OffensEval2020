@@ -3,6 +3,7 @@ import logging
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
+from model import BertClassifier, BertAvgPooling
 
 # TODO: logging
 logger = logging.getLogger(__name__)
