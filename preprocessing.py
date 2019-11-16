@@ -5,9 +5,8 @@ import emoji
 def compose(*functions):
     """"
     Compose functions so that they are applied in chain.
-    Note that the order of application is from tail to head.
     """
-    return reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+    return reduce(lambda f, g: lambda x: f(g(x)), functions[::-1])
 
 def demojize(sent):
     """
