@@ -1,6 +1,5 @@
 import torch
 
-
 def lines(func):
     """
     Decorator to print lines before and after function execution
