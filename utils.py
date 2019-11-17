@@ -36,7 +36,8 @@ def sequence_mask(lengths):
     # from https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/ops/array_ops.py
     row_vector = torch.arange(0, max(lengths), device=lengths.device) # (L,)
     matrix = lengths.unsqueeze(-1) # (B, 1)
-    result = row_vector < matrix # 1 for real tokens
+    # result = row_vector < matrix # 1 for real tokens
+    result = row_vector >= matrix # 1 for pad tokens
     return result # (B, L)
 
 def running_avg(mu, x, alpha):
