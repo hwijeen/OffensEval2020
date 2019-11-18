@@ -54,13 +54,13 @@ class BertAvgPooling(BertClassifier):
         x = self.out(x)                         # (batch_size, NUM_CLASS)
         return x
 
-def build_model(task, model):
+def build_model(task, model, device):
     assert model in ['bert', 'bert_avg']
     n_class = task_to_n_class[task]
     if model == 'bert':
-        return BertClassifier(n_class)
+        return BertClassifier(n_class).to(device)
     elif model == 'bert_avg':
-        return BertAvgPooling(n_class)
+        return BertAvgPooling(n_class).to(device)
 
 
 if __name__ == "__main__":

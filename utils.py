@@ -1,9 +1,7 @@
 import torch
 
+# Decorator to print lines before and after function execution
 def lines(func):
-    """
-    Decorator to print lines before and after function execution
-    """
     def wrapper(*args, **kwargs):
         print("="*80)
         ret = func(*args, **kwargs)

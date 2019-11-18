@@ -3,17 +3,13 @@ import logging
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
-from model import BertClassifier, BertAvgPooling
 
-# TODO: logging
 logger = logging.getLogger(__name__)
-
 task_to_col_idx = {'A':2, 'B':3, 'C':4}
 
+
 class BERTField(Field):
-    """
-    Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
-    """
+    """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode """
     def __init__(self, numericalize_func, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.numericalize_func = numericalize_func
@@ -29,56 +25,87 @@ class BERTField(Field):
 
 # TODO: MAXLEN in tweet field
 class Data(object):
-    """
-    Holds Datasets, Iterators.
-    """
-    def __init__(self, data_dir, task, preprocessing, bert_tok, batch_size,
-                 device):
-        self.train_path = os.path.join(data_dir, 'olid-training-v1.0.tsv')
-        self.test_path = os.path.join(data_dir, 'testset-levela.tsv') # same for a, b, c
+    """ Holds Datasets, Iterators. """
+    def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
+                 batch_size, device):
+        self.task = task
         self.device = device
-        self.build_dataset(task, preprocessing, bert_tok)
-        self.build_iterator(batch_size, device)
+        self.fields = self.build_field(task, tokenizer, preprocessing)
+        self.train, self.val, self.test = self.build_dataset(train_path,
+                                                             test_path)
+        self.build_vocab()
+        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
+                                                         batch_size, device)
+
+    def build_field(self, task, tokenizer, preprocessing):
+        ID = RawField()
+        TWEET = Field(preprocessing=preprocessing,
+                      batch_first=True)
+        fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
+                  ('NULL', None), ('NULL', None)]
+        LABEL = Field(sequential=False, unk_token=None, pad_token=None)
+        fields[task_to_col_idx[task]] = ('label', LABEL)
+        return fields
 
     # TODO: Strafied split
-    def build_dataset(self, task, preprocessing, bert_tok):
-
-        def build_field():
-            ID = RawField()
-            TWEET = BERTField(bert_tok.encode, include_lengths=True,
-                              use_vocab=False, batch_first=True,
-                              preprocessing=preprocessing,
-                              tokenize=bert_tok.tokenize,
-                              pad_token=bert_tok.pad_token,
-                              unk_token=bert_tok.unk_token)
-            fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
-                      ('NULL', None), ('NULL', None)]
-            LABEL = Field(sequential=False, unk_token=None, pad_token=None)
-            fields[task_to_col_idx[task]] = ('label', LABEL)
-            return fields
-
-        def build_label_vocab():
-            self.train.fields['label'].build_vocab(self.train)
-
-        fields = build_field()
+    def build_dataset(self, train_path, test_path):
         # TODO: check wehther filter_pred is correct
-        train_val = TabularDataset(self.train_path, 'tsv', fields,
+        train_val = TabularDataset(train_path, 'tsv', self.fields,
                                    skip_header=True,
                                    filter_pred=lambda x: x.label is not 'NULL')
-        self.train, self.val = train_val.split(split_ratio=0.8)
-        build_label_vocab()
-        self.test = TabularDataset(self.test_path, 'tsv', fields[:2],
+        train, val = train_val.split(split_ratio=0.8)
+        test = TabularDataset(test_path, 'tsv', self.fields[:2],
                                    skip_header=True) # has no label
+        return train, val, test
+
+    def build_vocab(self):
+        self.fields['tweet'].build_vocab(self.train, self.val)
+        self.train.fields['label'].build_vocab(self.train, self.val)
 
     # TODO: enable loading only test data
     # QUESTION: balanced batch?
     def build_iterator(self, batch_size, device):
-        self.train_iter, self.valid_iter, self.test_iter = \
-        BucketIterator.splits((self.train, self.val, self.test),
-                              batch_size=batch_size,
-                              sort_key=lambda x: len(x.tweet),
-                              sort_within_batch=True, repeat=True,
-                              device=device)
+        return BucketIterator.splits((self.train, self.val, self.test),
+                                      batch_size=batch_size,
+                                      sort_key=lambda x: len(x.tweet),
+                                      sort_within_batch=True, repeat=True,
+                                      device=device)
+
+
+class BertData(Data):
+    def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
+                 batch_size, device):
+        self.task = task
+        self.device = device
+        self.fields = self.build_field(task, tokenizer, preprocessing)
+        self.train, self.val, self.test = self.build_dataset(train_path,
+                                                             test_path)
+        self.build_vocab()
+        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
+            batch_size, device)
+
+    def build_field(self, task, tokenizer, preprocessing):
+        ID = RawField()
+        TWEET = BERTField(tokenizer.encode, include_lengths=True,
+                          use_vocab=False, batch_first=True,
+                          preprocessing=preprocessing,
+                          tokenize=tokenizer.tokenize,
+                          pad_token=tokenizer.pad_token,
+                          unk_token=tokenizer.unk_token)
+        fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
+                  ('NULL', None), ('NULL', None)]
+        LABEL = Field(sequential=False, unk_token=None, pad_token=None)
+        fields[task_to_col_idx[task]] = ('label', LABEL)
+        return fields
+
+    def build_vocab(self):
+        self.train.fields['label'].build_vocab(self.train, self.val)
+
+def build_data(model, *args, **kwargs):
+    if 'bert' in model:
+        return BertData(*args, **kwargs)
+    else:
+        return Data(*args, **kwargs)
 
 
 # QUESTION: OOV rate?
@@ -86,16 +113,18 @@ if __name__ == "__main__":
     from transformers import *
     from utils import *
 
-    data_dir = 'data/'
+    train_path = '../data/olid-training-v1.0.tsv'
+    test_path = '../data/testset-levela.tsv' # same for a, b, c
     task = 'A'
     batch_size = 32
-    device = torch.device('cuda')
+    cuda = True
     preprocessing = None
     bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
     model = BertModel.from_pretrained('bert-base-uncased')
 
     # Build data object
-    data = Data(data_dir, task, preprocessing, bert_tok, batch_size, device)
+    data = build_data('bert', train_path, test_path, task, preprocessing, bert_tok,
+                      batch_size, device=cuda)
 
     # See how targets are mapped to index
     print_label_vocab(data)
