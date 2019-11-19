@@ -4,7 +4,9 @@ import torch.nn.functional as F
 from transformers import BertModel, BertTokenizer
 from utils import sequence_mask
 
-task_to_n_class = {'A':2, 'B':2, 'C':3}
+# TODO: NUM_CLASS should be specified according to task
+# NUM_CLASS = 2
+task_to_n_class = {'a':2, 'b':2, 'c':3}
 
 class BertClassifier(nn.Module):
     def __init__(self, n_class):
@@ -65,19 +67,18 @@ if __name__ == "__main__":
     from dataloading import Data
 
     data_dir = '../data/olid/'
-    train_path = data_dir + 'oild-training-v1.0.tsv'
-    # task = 'a'
-    # task = 'b'
-    task = 'c'
+    # task = 'A'
+    # task = 'B'
+    task = 'C'
     batch_size = 32
     device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
     preprocessing = None
     bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = build_model(task, 'bert', device)
+    model = build_model(task, 'bert')
     # model = build_model(task, 'bert_avg')
 
     # Build data object
-    data = Data(train_path, task, preprocessing, bert_tok, batch_size, device)
+    data = Data(data_dir, task, preprocessing, bert_tok, batch_size, device)
 
     for batch in data.train_iter:
         id_ = batch.id

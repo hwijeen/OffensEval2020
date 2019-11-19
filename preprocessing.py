@@ -10,9 +10,9 @@ from transformers import BertTokenizer
 
 resources_dir = '../resources/'
 
-def compose(*functions):
+def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
-    return reduce(lambda f, g: lambda x: f(g(x)), functions[::-1])
+    return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
 def demojize(sent):
     """ Replace emoticon with predefined :text:. """
@@ -21,10 +21,13 @@ def demojize(sent):
 #def capitalization(sent):
 #    pass
 
-def build_preprocess():
-    pass
+def build_preprocess(no_demojize):
+    funcs = []
+    if not no_demojize:
+        funcs.append(demojize)
+    return compose(*funcs)
 
-def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None):        
+def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None):
     if 'bert' in model:
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         if emoji_min_freq:
