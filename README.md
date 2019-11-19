@@ -11,7 +11,7 @@ Data for OffensEval2019 can be downloaded from the [official OLID dataset page](
 ## Quick start
 
 ```bash
-python main.py
+python train.py
 ```
 
 

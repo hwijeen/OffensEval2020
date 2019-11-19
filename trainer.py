@@ -5,6 +5,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 # TODO: early stopping
 # TODO: running avg
+# TODO: logging
+# TODO: evaluation
 class Trainer():
     def __init__(self, model, train_iter, val_iter, test_iter, optimizer,
                  scheduler, record_every=100, exp_name=None):
@@ -17,6 +19,7 @@ class Trainer():
         self.record_every = record_every
         self.writer = SummaryWriter(exp_name)
         self.criterion = nn.CrossEntropyLoss()
+        #self.criterion = nn.BCEWithLogitsLoss()
 
     def _compute_loss(self, batch):
         logits = self.model(*batch.tweet)
@@ -34,7 +37,6 @@ class Trainer():
     def train(self, train_step):
         self.model.train()
         for step, batch in enumerate(self.train_iter, 1):
-            print(step)
             loss = self._compute_loss(batch)
 
             self.optimizer.zero_grad()
@@ -45,6 +47,7 @@ class Trainer():
             if step % self.record_every == 0:
                 val_loss = self._compute_entire_loss(self.val_iter)
                 self.record(loss, val_loss, step)
+                print(f'Loss at step {step}: {loss.item()}')
 
             if step == train_step:
                 self.writer.close()

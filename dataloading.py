@@ -1,11 +1,11 @@
-import os
+import six
 import logging
 
 import torch
-from torchtext.data import RawField, Field, TabularDataset, BucketIterator
+from torchtext.data import Pipeline, RawField, Field, TabularDataset, BucketIterator
 
 logger = logging.getLogger(__name__)
-task_to_col_idx = {'A':2, 'B':3, 'C':4}
+task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
 
 class BERTField(Field):
@@ -14,7 +14,19 @@ class BERTField(Field):
         super().__init__(*args, **kwargs)
         self.numericalize_func = numericalize_func
 
+    def preprocess(self, x):
+        """To enable preprocessing on string, not on list of tokens"""
+        if (six.PY2 and isinstance(x, six.string_types)
+                and not isinstance(x, six.text_type)):
+            x = Pipeline(lambda s: six.text_type(s, encoding='utf-8'))(x)
+        if self.preprocessing is not None:
+            x = self.preprocessing(x)
+        if self.sequential and isinstance(x, six.text_type):
+            x = self.tokenize(x.rstrip('\n'))
+        return x
+
     def numericalize(self, arr, device=None):
+        """To use BertTokenizer.encode"""
         arr, lengths = arr
         lengths = torch.tensor(lengths, dtype=self.dtype, device=device)
         arr = [self.numericalize_func(sent) for sent in arr]
@@ -115,7 +127,7 @@ if __name__ == "__main__":
 
     train_path = '../data/olid-training-v1.0.tsv'
     test_path = '../data/testset-levela.tsv' # same for a, b, c
-    task = 'A'
+    task = 'a'
     batch_size = 32
     cuda = True
     preprocessing = None

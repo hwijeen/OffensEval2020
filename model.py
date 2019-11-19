@@ -6,7 +6,7 @@ from utils import sequence_mask
 
 # TODO: NUM_CLASS should be specified according to task
 # NUM_CLASS = 2
-task_to_n_class = {'A':2, 'B':2, 'C':3}
+task_to_n_class = {'a':2, 'b':2, 'c':3}
 
 class BertClassifier(nn.Module):
     def __init__(self, n_class):
