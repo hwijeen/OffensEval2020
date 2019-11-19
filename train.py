@@ -21,7 +21,6 @@ def parse_args():
     data.add_argument('--task', choices=['A', 'B', 'C'], default='A', )
     data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
     data.add_argument('--test_path', default='../data/testset-levela.tsv')
-
     preprocess = parser.add_argument_group('Preprocessing options')
     #preprocess.add_argument('--capitalize')
     preprocess.add_argument('--punctuation')
