@@ -25,9 +25,9 @@ def parse_args():
     preprocess = parser.add_argument_group('Preprocessing options')
     #preprocess.add_argument('--capitalize')
     preprocess.add_argument('--punctuation')
-    preprocess.add_argument('--no_demojize', action='store_true')
+    preprocess.add_argument('--keep_emoji', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
-    preprocess.add_argument('--hashtag_min_freq', type=int, default=1)
+    preprocess.add_argument('--hashtag_min_freq', type=int, default=10)
     preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
@@ -58,8 +58,10 @@ if __name__ == "__main__":
 
     args = parse_args()
     exp_name = generate_exp_name(args)
-    preprocessing = build_preprocess(no_demojize=args.no_demojize)
-    tokenizer = build_tokenizer(args.model)
+    preprocessing = build_preprocess(keep_emoji=args.keep_emoji)
+    tokenizer = build_tokenizer(model=args.model,
+                                emoji_min_freq=args.emoji_min_freq,
+                                hashtag_min_freq=args.hashtag_min_freq)
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,
                            test_path=args.test_path,
@@ -70,7 +72,8 @@ if __name__ == "__main__":
                            device=args.device)
     model = build_model(task=args.task,
                         model=args.model,
-                        device=args.device)
+                        device=args.device,
+                        tokenizer=tokenizer)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
                                                      eps=(args.beta1, args.beta2),

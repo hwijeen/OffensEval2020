@@ -21,9 +21,9 @@ def demojize(sent):
 #def capitalization(sent):
 #    pass
 
-def build_preprocess(no_demojize):
+def build_preprocess(keep_emoji):
     funcs = []
-    if not no_demojize:
+    if not keep_emoji:
         funcs.append(demojize)
     return compose(*funcs)
 

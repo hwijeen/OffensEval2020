@@ -54,13 +54,17 @@ class BertAvgPooling(BertClassifier):
         x = self.out(x)                         # (batch_size, NUM_CLASS)
         return x
 
-def build_model(task, model, device):
+def build_model(task, model, device, tokenizer=None):
     assert model in ['bert', 'bert_avg']
     n_class = task_to_n_class[task]
     if model == 'bert':
-        return BertClassifier(n_class).to(device)
+        model = BertClassifier(n_class).to(device)
+        model.bert.resize_token_embeddings(len(tokenizer))
+        return model
     elif model == 'bert_avg':
-        return BertAvgPooling(n_class).to(device)
+        model = BertAvgPooling(n_class).to(device)
+        model.bert.resize_token_embeddings(len(tokenizer))
+        return model
 
 
 if __name__ == "__main__":

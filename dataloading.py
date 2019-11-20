@@ -1,8 +1,7 @@
-import six
 import logging
 
 import torch
-from torchtext.data import Pipeline, RawField, Field, TabularDataset, BucketIterator
+from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
@@ -15,13 +14,10 @@ class BERTField(Field):
         self.numericalize_func = numericalize_func
 
     def preprocess(self, x):
-        """To enable preprocessing on string, not on list of tokens"""
-        if (six.PY2 and isinstance(x, six.string_types)
-                and not isinstance(x, six.text_type)):
-            x = Pipeline(lambda s: six.text_type(s, encoding='utf-8'))(x)
+        """To enable preprocessing before tokenization"""
         if self.preprocessing is not None:
             x = self.preprocessing(x)
-        if self.sequential and isinstance(x, six.text_type):
+        if self.sequential:
             x = self.tokenize(x.rstrip('\n'))
         return x
 
@@ -94,7 +90,7 @@ class BertData(Data):
                                                              test_path)
         self.build_vocab()
         self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
-            batch_size, device)
+                                                          batch_size, device)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
