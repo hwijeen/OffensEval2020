@@ -24,8 +24,9 @@ class BertClassifier(nn.Module):
             x (torch.FloatTensor): logits of shape (batch_size, NUM_CLASS)
         
         """
-        _, x = self.bert(x)     # (batch_size, hidden_size)
-        x = self.out(x)         # (batch_size, NUM_CLASS)
+        x_mask = sequence_mask(length)              # (batch_size, max_length)
+        _, x = self.bert(x, attention_mask=x_mask)  # (batch_size, hidden_size)
+        x = self.out(x)                             # (batch_size, NUM_CLASS)
         return x
 
 
@@ -45,8 +46,9 @@ class BertAvgPooling(BertClassifier):
             x (torch.FloatTensor): logits of shape (batch_size, NUM_CLASS)
         
         """
-        x, _ = self.bert(x)                     # (batch_size, seq_length, hidden_size)
-        x = x.masked_fill_(sequence_mask(length).unsqueeze(-1), 0.0)
+        x_mask = sequence_mask(length)  # (batch_size, max_length)
+        x, _ = self.bert(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+        x = x.masked_fill_(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=1)                 # (batch_size, 1, hidden_size)
         x = x.squeeze()                         # (batch_size, hidden_size)
         x = x / length.unsqueeze(-1).float()
