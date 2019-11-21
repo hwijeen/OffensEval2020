@@ -3,7 +3,7 @@ from pandas import read_csv
 import pickle
 import re
 from collections import Counter
-from functools import reduce
+from functools import reduce, partial
 
 import emoji
 from transformers import BertTokenizer
@@ -18,18 +18,41 @@ def demojize(sent):
     """ Replace emoticon with predefined :text:. """
     return emoji.demojize(sent)
 
+def del_mention(sent, keep_num):
+    """Consecutive `@USER` up to kee_num times"""
+    return re.sub('((@USER)[\s]*){' + str(keep_num+1) + ',}', lambda match: '@USER '*keep_num, sent)
+
+def lower_hashtag(sent):
+    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
+
 #def capitalization(sent):
 #    pass
 
-def build_preprocess(keep_emoji):
-    funcs = []
+# TODO
+def numbers():
+    pass
+
+# TODO:
+def stopwords():
+    pass
+
+def replace_urls(sent):
+    return sent.replace('URL', 'http')
+
+def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag):
+    funcs = [replace_urls] # default
     if not keep_emoji:
         funcs.append(demojize)
+    if keep_mention_num > 0:
+        funcs.append(partial(del_mention, keep_num=keep_mention_num))
+    if not keep_hashtag:
+        funcs.append(lower_hashtag)
     return compose(*funcs)
 
 def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None):
     if 'bert' in model:
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        tokenizer.add_tokens(['@USER'])
         if emoji_min_freq:
             new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
             tokenizer.add_tokens(new_tokens)

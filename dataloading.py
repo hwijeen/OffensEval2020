@@ -51,19 +51,18 @@ class Data(object):
                       batch_first=True)
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
                   ('NULL', None), ('NULL', None)]
-        LABEL = Field(sequential=False, unk_token=None, pad_token=None)
+        LABEL = Field(sequential=False, unk_token=None, pad_token=None, is_target=True)
         fields[task_to_col_idx[task]] = ('label', LABEL)
         return fields
 
-    # TODO: Strafied split
+    # TODO: Check stratified split is correct
     def build_dataset(self, train_path, test_path):
         # TODO: check wehther filter_pred is correct
         train_val = TabularDataset(train_path, 'tsv', self.fields,
                                    skip_header=True,
                                    filter_pred=lambda x: x.label is not 'NULL')
-        train, val = train_val.split(split_ratio=0.8)
-        test = TabularDataset(test_path, 'tsv', self.fields[:2],
-                                   skip_header=True) # has no label
+        train, val = train_val.split(split_ratio=0.8, stratified=True)
+        test = TabularDataset(test_path, 'tsv', self.fields[:2], skip_header=True) # has no label
         return train, val, test
 
     def build_vocab(self):
