@@ -9,15 +9,16 @@ from torch.utils.tensorboard import SummaryWriter
 # TODO: evaluation
 class Trainer():
     def __init__(self, model, train_iter, val_iter, test_iter, optimizer,
-                 scheduler, record_every=100, exp_name=None):
+                 scheduler, max_grad_norm, record_every=100, exp_name=None):
         self.model = model
         self.train_iter = train_iter
         self.val_iter = val_iter
         self.test_iter = test_iter
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.max_grad_norm = max_grad_norm
         self.record_every = record_every
-        self.writer = SummaryWriter(exp_name)
+        self.writer = SummaryWriter('runs/'+exp_name)
         self.criterion = nn.CrossEntropyLoss()
         #self.criterion = nn.BCEWithLogitsLoss()
 
@@ -41,6 +42,7 @@ class Trainer():
 
             self.optimizer.zero_grad()
             loss.backward()
+            #nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             self.scheduler.step()
 
@@ -76,8 +78,8 @@ class Trainer():
     #    self.model.train()
     #    return acc
 
-def build_trainer(model, data, optimizer, scheduler, record_every, exp_name):
+def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every, exp_name):
     exp_name = exp_name
     trainer = Trainer(model, data.train_iter, data.val_iter, data.test_iter,
-                      optimizer, scheduler, record_every, exp_name)
+                      optimizer, scheduler, max_grad_norm, record_every, exp_name)
     return trainer

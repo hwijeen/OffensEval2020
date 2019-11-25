@@ -27,38 +27,44 @@ def parse_args():
     preprocess.add_argument('--punctuation')
     preprocess.add_argument('--keep_emoji', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
+    preprocess.add_argument('--keep_hashtag', action='store_true')
     preprocess.add_argument('--hashtag_min_freq', type=int, default=10)
+    preprocess.add_argument('--keep_mention_num', type=int, default=3)
     preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'bert_avg'], default='bert')
 
-    optimizer_scheduler = parser.add_argument_group(('Optimizer and scheduler options'))
-    optimizer_scheduler.add_argument('--lr', type=float, default=0.001)
+    optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
+    optimizer_scheduler.add_argument('--lr', type=float, default=0.0001)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--warmup', type=int, default=100)
+    optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
 
     training = parser.add_argument_group('Training options')
-    training.add_argument('--batch_size', type=int, default=32)
-    training.add_argument('--cuda', action='store_true', default=True)
+    training.add_argument('--batch_size', type=int, default=64)
+    training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=100000)
-    training.add_argument('--record_every', type=int, default=100)
+    training.add_argument('--record_every', type=int, default=1)
 
     args = parser.parse_args()
     # TODO: clean these hacks..
-    args.device = torch.device('cuda') if args.cuda else torch.device('cpu')
+    args.device = torch.device(f'cuda:{args.cuda}') if torch.cuda.is_available() else torch.device('cpu')
     args.test_path = args.test_path.replace('level', f'level{args.task}')
     return args
 
 def generate_exp_name(args):
-    return
+    exp_name = f'lr{args.lr}'
+    return exp_name
 
 if __name__ == "__main__":
 
     args = parse_args()
     exp_name = generate_exp_name(args)
-    preprocessing = build_preprocess(keep_emoji=args.keep_emoji)
+    preprocessing = build_preprocess(keep_emoji=args.keep_emoji,
+                                     keep_mention_num=args.keep_mention_num,
+                                     keep_hashtag=args.keep_hashtag)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq)
@@ -83,6 +89,7 @@ if __name__ == "__main__":
                             data=olid_data,
                             optimizer=optimizer,
                             scheduler=scheduler,
+                            max_grad_norm=args.max_grad_norm,
                             record_every=args.record_every,
                             exp_name=exp_name)
 
