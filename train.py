@@ -48,10 +48,16 @@ def parse_args():
     training.add_argument('--train_step', type=int, default=100000)
     training.add_argument('--record_every', type=int, default=1)
 
+    parser.add_argument('--debug', action='store_true')
+
     args = parser.parse_args()
     # TODO: clean these hacks..
     args.device = torch.device(f'cuda:{args.cuda}') if torch.cuda.is_available() else torch.device('cpu')
     args.test_path = args.test_path.replace('level', f'level{args.task}')
+    if args.debug:
+        args.train_path = '../data/debug_train.tsv'
+        print('Debug mode!!!!')
+
     return args
 
 def generate_exp_name(args):
@@ -62,17 +68,18 @@ if __name__ == "__main__":
 
     args = parse_args()
     exp_name = generate_exp_name(args)
-    preprocessing = build_preprocess(keep_emoji=args.keep_emoji,
-                                     keep_mention_num=args.keep_mention_num,
-                                     keep_hashtag=args.keep_hashtag)
+    preprocess = build_preprocess(keep_emoji=args.keep_emoji,
+                                  keep_mention_num=args.keep_mention_num,
+                                  keep_hashtag=args.keep_hashtag)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
-                                hashtag_min_freq=args.hashtag_min_freq)
+                                hashtag_min_freq=args.hashtag_min_freq,
+                                preprocess=preprocess)
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,
                            test_path=args.test_path,
                            task=args.task,
-                           preprocessing=preprocessing,
+                           preprocessing=None, # TODO: maxlength
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
                            device=args.device)

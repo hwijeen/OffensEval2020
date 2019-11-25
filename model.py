@@ -29,6 +29,12 @@ class BertClassifier(nn.Module):
         x = self.out(x)                             # (batch_size, NUM_CLASS)
         return x
 
+    def predict(self, x, length):
+        logits = self(x, length)
+        return logits.argmax(1)
+
+
+
 
 class BertAvgPooling(BertClassifier):
     def __init__(self, n_class):

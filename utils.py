@@ -38,6 +38,19 @@ def sequence_mask(lengths):
     result = row_vector >= matrix # 1 for pad tokens
     return result # (B, L)
 
+def calc_acc(pred, gold):
+    """
+    Calculates accuracy between prediction and gold label.
+    """
+    if isinstance(pred, list) and isinstance(gold, list):
+        pred = torch.tensor(pred)
+        gold = torch.tensor(gold)
+    assert pred.size(0) == gold.size(0)
+    N = pred.size(0)
+    agree = (pred == gold).sum()
+    accuracy = float(agree) / N
+    return accuracy
+
 def running_avg(mu, x, alpha):
     return mu + alpha * (x - mu)
 

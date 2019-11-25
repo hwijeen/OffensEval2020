@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
+from utils import calc_acc
+
 
 # TODO: early stopping
 # TODO: running avg
@@ -48,8 +50,12 @@ class Trainer():
 
             if step % self.record_every == 0:
                 val_loss = self._compute_entire_loss(self.val_iter)
+                train_acc = self.evaluate(self.train_iter)
                 self.record(loss, val_loss, step)
-                print(f'Loss at step {step}: {loss.item()}')
+                print(f'At step: {step}')
+                print(f'\tTrain loss: {loss.item()}')
+                print(f'\tVal loss: {val_loss.item()}')
+                print(f'\tTrain acc: {train_acc} - for debug!')
 
             if step == train_step:
                 self.writer.close()
@@ -63,20 +69,20 @@ class Trainer():
         if val_acc is not None:
             self.writer.add_scalar('Accuracy/val', val_acc, step)
 
-    #def evaluate(self, data_iter):
-    #    self.model.eval()
-    #    data_iter.repeat = False
-    #    predictions = []
-    #    truth = []
-    #    with torch.no_grad():
-    #        for batch in data_iter:
-    #            pred = self.model.inference(*batch.sent)
-    #            predictions += pred.tolist()
-    #            truth += batch.tgt.tolist()
-    #    acc = calc_accuracy(predictions, truth)
-    #    data_iter.repeat = True
-    #    self.model.train()
-    #    return acc
+    def evaluate(self, data_iter):
+        self.model.eval()
+        data_iter.repeat = False
+        predictions = []
+        truth = []
+        with torch.no_grad():
+            for batch in data_iter:
+                pred = self.model.predict(*batch.tweet)
+                predictions += pred.tolist()
+                truth += batch.label.tolist()
+        acc = calc_acc(predictions, truth)
+        data_iter.repeat = True
+        self.model.train()
+        return acc
 
 def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every, exp_name):
     exp_name = exp_name

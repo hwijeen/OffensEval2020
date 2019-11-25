@@ -13,14 +13,6 @@ class BERTField(Field):
         super().__init__(*args, **kwargs)
         self.numericalize_func = numericalize_func
 
-    def preprocess(self, x):
-        """To enable preprocessing before tokenization"""
-        if self.preprocessing is not None:
-            x = self.preprocessing(x)
-        if self.sequential:
-            x = self.tokenize(x.rstrip('\n'))
-        return x
-
     def numericalize(self, arr, device=None):
         """To use BertTokenizer.encode"""
         arr, lengths = arr

@@ -49,16 +49,24 @@ def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag):
         funcs.append(lower_hashtag)
     return compose(*funcs)
 
-def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None):
+def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None,
+                    preprocess=None):
     if 'bert' in model:
+        # FIXME: hard code
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         tokenizer.add_tokens(['@USER'])
-        if emoji_min_freq:
+        if emoji_min_freq is not None:
             new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
             tokenizer.add_tokens(new_tokens)
-        if hashtag_min_freq:
+        if hashtag_min_freq is not None:
             new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
             tokenizer.add_tokens(new_tokens)
+        if preprocess is not None:
+            tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
+
+    else:
+        # TODO: when not using bert
+        pass
     return tokenizer
 
 def build_freq_dict(train_corpus, which):
