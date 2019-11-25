@@ -18,6 +18,7 @@ def demojize(sent):
     """ Replace emoticon with predefined :text:. """
     return emoji.demojize(sent)
 
+# TODO: need a space after the last `@USER`
 def del_mention(sent, keep_num):
     """Consecutive `@USER` up to kee_num times"""
     return re.sub('((@USER)[\s]*){' + str(keep_num+1) + ',}', lambda match: '@USER '*keep_num, sent)
@@ -52,7 +53,7 @@ def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag):
 def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None,
                     preprocess=None):
     if 'bert' in model:
-        # FIXME: hard code
+        # TODO: Fix hard code here
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         tokenizer.add_tokens(['@USER'])
         if emoji_min_freq is not None:

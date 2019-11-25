@@ -50,11 +50,14 @@ class Trainer():
 
             if step % self.record_every == 0:
                 val_loss = self._compute_entire_loss(self.val_iter)
-                train_acc = self.evaluate(self.train_iter)
+                val_acc = self.evaluate(self.val_iter)
                 self.record(loss, val_loss, step)
                 print(f'At step: {step}')
                 print(f'\tTrain loss: {loss.item()}')
                 print(f'\tVal loss: {val_loss.item()}')
+                print(f'\tval acc: {val_acc}')
+
+                train_acc = self.evaluate(self.train_iter)
                 print(f'\tTrain acc: {train_acc} - for debug!')
 
             if step == train_step:
@@ -84,8 +87,10 @@ class Trainer():
         self.model.train()
         return acc
 
-def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every, exp_name):
+def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every,
+                  exp_name):
     exp_name = exp_name
     trainer = Trainer(model, data.train_iter, data.val_iter, data.test_iter,
-                      optimizer, scheduler, max_grad_norm, record_every, exp_name)
+                      optimizer, scheduler, max_grad_norm, record_every,
+                      exp_name)
     return trainer

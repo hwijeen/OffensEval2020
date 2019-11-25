@@ -4,8 +4,6 @@ import torch.nn.functional as F
 from transformers import BertModel, BertTokenizer
 from utils import sequence_mask
 
-# TODO: NUM_CLASS should be specified according to task
-# NUM_CLASS = 2
 task_to_n_class = {'a':2, 'b':2, 'c':3}
 
 class BertClassifier(nn.Module):
@@ -34,8 +32,6 @@ class BertClassifier(nn.Module):
         return logits.argmax(1)
 
 
-
-
 class BertAvgPooling(BertClassifier):
     def __init__(self, n_class):
         super().__init__(n_class)
@@ -54,7 +50,7 @@ class BertAvgPooling(BertClassifier):
         """
         x_mask = sequence_mask(length)  # (batch_size, max_length)
         x, _ = self.bert(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
-        x = x.masked_fill_(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
+        x = x.masked_fill_(sequence_mask(length).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=1)                 # (batch_size, 1, hidden_size)
         x = x.squeeze()                         # (batch_size, hidden_size)
         x = x / length.unsqueeze(-1).float()

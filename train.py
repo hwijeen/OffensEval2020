@@ -46,7 +46,7 @@ def parse_args():
     training.add_argument('--batch_size', type=int, default=64)
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=100000)
-    training.add_argument('--record_every', type=int, default=1)
+    training.add_argument('--record_every', type=int, default=10)
 
     parser.add_argument('--debug', action='store_true')
 
@@ -79,7 +79,7 @@ if __name__ == "__main__":
                            train_path=args.train_path,
                            test_path=args.test_path,
                            task=args.task,
-                           preprocessing=None, # TODO: maxlength
+                           preprocessing=None,
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
                            device=args.device)
