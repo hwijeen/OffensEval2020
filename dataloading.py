@@ -7,12 +7,10 @@ logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
 # TODO: max_length with torchtext or berttokenizer?
-# TODO: how to smoothly incorporate into transformer..
-class BERTField(Field):
-    """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode """
+class TransformerField(Field):
+    """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
+    or RobertaTokenizer.encode"""
     def __init__(self, tokenizer, *args, **kwargs):
-        kwargs['init_token'] = tokenizer._cls_token
-        kwargs['eos_token'] = tokenizer._sep_token
         super().__init__(*args, **kwargs)
         self.numericalize_func = tokenizer.encode
 
@@ -66,6 +64,7 @@ class Data(object):
     # TODO: enable loading only test data
     # TODO: balanced batch needed?
     def build_iterator(self, batch_size, device):
+
         return BucketIterator.splits((self.train, self.val, self.test),
                                       batch_size=batch_size,
                                       sort_key=lambda x: len(x.tweet),
@@ -87,10 +86,12 @@ class BertData(Data):
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        TWEET = BERTField(tokenizer, include_lengths=True,
+        TWEET = TransformerField(tokenizer, include_lengths=True,
                           use_vocab=False, batch_first=True,
                           preprocessing=preprocessing,
                           tokenize=tokenizer.tokenize,
+                          init_token=tokenizer._cls_token,
+                          eos_token=tokenizer._sep_token,
                           pad_token=tokenizer.pad_token,
                           unk_token=tokenizer.unk_token)
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),

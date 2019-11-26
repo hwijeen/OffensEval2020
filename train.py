@@ -34,7 +34,8 @@ def parse_args():
     preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
-    model.add_argument('--model', choices=['bert', 'bert_avg'], default='bert')
+    model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
+    model.add_argument('--pooling', choices=['cls', 'avg'], default='cls')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.0001)
@@ -86,6 +87,7 @@ if __name__ == "__main__":
                            device=args.device)
     model = build_model(task=args.task,
                         model=args.model,
+                        pooling=args.pooling,
                         device=args.device,
                         tokenizer=tokenizer)
     optimizer, scheduler = build_optimizer_scheduler(model=model,

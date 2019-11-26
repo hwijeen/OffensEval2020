@@ -1,16 +1,16 @@
 import torch
+
 import torch.nn as nn
-import torch.nn.functional as F
-from transformers import BertModel, BertTokenizer
+from transformers import BertModel, RobertaModel
 from utils import sequence_mask
 
 task_to_n_class = {'a':2, 'b':2, 'c':3}
 
-class BertClassifier(nn.Module):
-    def __init__(self, n_class):
+class CLSClassifier(nn.Module):
+    def __init__(self, transformer_model, n_class):
         super().__init__()
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.out = nn.Linear(self.bert.config.hidden_size, n_class)
+        self.model = transformer_model
+        self.out = nn.Linear(self.model.config.hidden_size, n_class)
     
     def forward(self, x, length):
         """Maps input to pooler_output, to prediction
@@ -23,7 +23,7 @@ class BertClassifier(nn.Module):
         
         """
         x_mask = sequence_mask(length, pad=0)              # (batch_size, max_length)
-        _, x = self.bert(x, attention_mask=x_mask)  # (batch_size, hidden_size)
+        _, x = self.model(x, attention_mask=x_mask)  # (batch_size, hidden_size)
         x = self.out(x)                             # (batch_size, NUM_CLASS)
         return x
 
@@ -32,11 +32,10 @@ class BertClassifier(nn.Module):
         return logits.argmax(1)
 
 
-class BertAvgPooling(BertClassifier):
-    def __init__(self, n_class):
-        super().__init__(n_class)
-        # self.linear = nn.Linear(self.bert.config.hidden_size, self.bert.config.hidden_size)
-    
+class AvgPoolClassifier(CLSClassifier):
+    def __init__(self, transformer_model, n_class):
+        super().__init__(transformer_model, n_class)
+
     def forward(self, x, length):
         """Maps input to last hidden state, to pooler_output, to prediction
 
@@ -49,7 +48,7 @@ class BertAvgPooling(BertClassifier):
         
         """
         x_mask = sequence_mask(length, pad=0)  # (batch_size, max_length)
-        x, _ = self.bert(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+        x, _ = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
         x = x.masked_fill_(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=1)                 # (batch_size, 1, hidden_size)
         x = x.squeeze()                         # (batch_size, hidden_size)
@@ -58,21 +57,32 @@ class BertAvgPooling(BertClassifier):
         x = self.out(x)                         # (batch_size, NUM_CLASS)
         return x
 
-def build_model(task, model, device, tokenizer=None):
-    assert model in ['bert', 'bert_avg']
+# TODO: fix hardcoding of model names(need to be compatiable with preprocessing)
+def build_model(task, model, pooling, device, tokenizer):
+    assert model in ['bert', 'roberta']
+    assert pooling in ['cls', 'avg']
     n_class = task_to_n_class[task]
     if model == 'bert':
-        model = BertClassifier(n_class).to(device)
-        model.bert.resize_token_embeddings(len(tokenizer))
-        return model
-    elif model == 'bert_avg':
-        model = BertAvgPooling(n_class).to(device)
-        model.bert.resize_token_embeddings(len(tokenizer))
-        return model
+        base_model = BertModel.from_pretrained('bert-base-uncased')
+        base_model.resize_token_embeddings(len(tokenizer))
+    elif model == 'roberta':
+        base_model = RobertaModel.from_pretrained('roberta-base')
+        base_model.resize_token_embeddings(len(tokenizer))
+    else:
+        pass
+
+    if pooling == 'cls':
+        model = CLSClassifier(base_model, n_class)
+    elif pooling == 'avg':
+        model = AvgPoolClassifier(base_model, n_class)
+    else:
+        pass
+    return model.to(device)
 
 
 if __name__ == "__main__":
     from dataloading import Data
+    from transformers import BertTokenizer
 
     data_dir = '../data/olid/'
     # task = 'A'

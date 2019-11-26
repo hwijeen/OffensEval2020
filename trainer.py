@@ -30,7 +30,7 @@ class Trainer:
     def compute_entire_loss(self, data_iter):
         data_iter.repeat = False
         with torch.no_grad():
-            losses = list(map(self._compute_loss, data_iter))
+            losses = list(map(self.compute_loss, data_iter))
             loss = sum(losses) / len(losses) # TODO: not exactly accurate
         data_iter.repeat = True
         return loss
