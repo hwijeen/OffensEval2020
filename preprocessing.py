@@ -74,7 +74,7 @@ def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag, add_cap_sign, l
     if not keep_emoji:
         funcs.append(demojize)
     if keep_mention_num > 0:
-        funcs.append(partial(del_mention, keep_num=keep_mention_num))
+        funcs.append(partial(limit_mention, keep_num=keep_mention_num))
     if not keep_hashtag:
         funcs.append(lower_hashtag)
     if add_cap_sign:
