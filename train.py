@@ -4,10 +4,11 @@ import logging
 import torch
 
 from dataloading import build_data
-from preprocessing import build_preprocess, build_tokenizer
 from model import build_model
 from trainer import build_trainer
+from utils import write_result_to_file
 from optimizer import build_optimizer_scheduler
+from preprocessing import build_preprocess, build_tokenizer
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -61,11 +62,11 @@ def parse_args():
     return args
 
 def generate_exp_name(args):
-    exp_name = f'lr{args.lr}'
+    lr = f'lr{args.lr}'
+    exp_name = lr
     return exp_name
 
 if __name__ == "__main__":
-
     args = parse_args()
     exp_name = generate_exp_name(args)
     preprocess = build_preprocess(keep_emoji=args.keep_emoji,
@@ -103,4 +104,9 @@ if __name__ == "__main__":
     logger.info(f'Training logs are in {exp_name}')
     logger.info(f'Preprocessing options')
     logger.info(f'Number of vocab and data size')
-    trainer.train(args.train_step)
+    trained_model = trainer.train(args.train_step)
+
+    file_name = 'runs/'+exp_name+'/test.tsv'
+    write_result_to_file(trained_model, trainer.val_iter, tokenizer,
+                         file_name, exp_name)
+

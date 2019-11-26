@@ -1,3 +1,5 @@
+import os
+
 import torch
 
 # Decorator to print lines before and after function execution
@@ -63,3 +65,33 @@ def running_avg_list(x_list, x, alpha=0.9):
         mu = 0
     return running_avg(mu, x, alpha)
 
+def write_result_to_file(model, data_iter, tokenizer, file_name, exp_name):
+    model.eval()
+    data_iter.repeat = False
+    ids, tweets, preds, golds, probs = [], [], [], [], []
+    with torch.no_grad():
+        for batch in data_iter:
+            id_ = batch.id
+            tweet = [tokenizer.decode(tweet.tolist(), skip_special_tokens=True)\
+                      for tweet in batch.tweet[0]]
+            pred = model.predict(*batch.tweet).tolist()
+            gold = batch.label.tolist()
+            prob = model(*batch.tweet).tolist()
+
+            ids += id_
+            tweets += tweet
+            preds += map(str, pred)
+            golds += map(str, gold)
+            probs += [' '.join(map(str, p)) for p in prob]
+    write_to_file(file_name, exp_name, ids, tweets, preds, golds, probs)
+
+format_to_sep = {'.tsv': '\t', '.csv': ','}
+def write_to_file(file_name, exp_name, *args):
+    basename, format = os.path.splitext(file_name)
+    assert format in format_to_sep
+    sep = format_to_sep[format]
+    with open(file_name, 'w') as f:
+        f.write(exp_name + '\n')
+        for line in zip(*args):
+            sep_line = sep.join(line) + '\n'
+            f.write(sep_line)

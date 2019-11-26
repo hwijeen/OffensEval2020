@@ -21,25 +21,24 @@ class Trainer:
         self.record_every = record_every
         self.writer = SummaryWriter('runs/'+exp_name)
         self.criterion = nn.CrossEntropyLoss()
-        #self.criterion = nn.BCEWithLogitsLoss()
 
-    def _compute_loss(self, batch):
+    def compute_loss(self, batch):
         logits = self.model(*batch.tweet)
         loss = self.criterion(logits, batch.label)
         return loss
 
-    def _compute_entire_loss(self, data_iter):
+    def compute_entire_loss(self, data_iter):
         data_iter.repeat = False
         with torch.no_grad():
             losses = list(map(self._compute_loss, data_iter))
-            loss = sum(losses) / len(losses)
+            loss = sum(losses) / len(losses) # TODO: not exactly accurate
         data_iter.repeat = True
         return loss
 
     def train(self, train_step):
-        self.model.train()
         for step, batch in enumerate(self.train_iter, 1):
-            loss = self._compute_loss(batch)
+            self.model.train()
+            loss = self.compute_loss(batch)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -48,7 +47,7 @@ class Trainer:
             self.scheduler.step()
 
             if step % self.record_every == 0:
-                val_loss = self._compute_entire_loss(self.val_iter)
+                val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc = self.evaluate(self.val_iter)
                 self.record(loss, val_loss, step)
                 print(f'At step: {step}')
@@ -61,7 +60,7 @@ class Trainer:
 
             if step == train_step:
                 self.writer.close()
-                break
+                return self.model
 
     def record(self, loss, val_loss, step, train_acc=None, val_acc=None):
         self.writer.add_scalar('Loss/train', loss.item(), step)
@@ -74,18 +73,17 @@ class Trainer:
     def evaluate(self, data_iter):
         self.model.eval()
         data_iter.repeat = False
-        predictions = []
-        truth = []
+        predictions, golds = [], []
         with torch.no_grad():
             for batch in data_iter:
                 pred = self.model.predict(*batch.tweet)
                 predictions += pred.tolist()
-                truth += batch.label.tolist()
-        acc = calc_acc(predictions, truth)
+                golds += batch.label.tolist()
+        acc = calc_acc(predictions, golds)
         data_iter.repeat = True
-        self.model.train()
         return acc
 
+# TODO: is this necessary?
 def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every,
                   exp_name):
     exp_name = exp_name
