@@ -69,38 +69,40 @@ def stopwords():
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
-def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag, add_cap_sign, limit_punc):
+def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
+                     add_cap_sign):
     funcs = [replace_urls] # default
-    if not keep_emoji:
+    if not demojize:
         funcs.append(demojize)
-    if keep_mention_num > 0:
-        funcs.append(partial(limit_mention, keep_num=keep_mention_num))
-    if not keep_hashtag:
+    if mention_limit > 0:
+        funcs.append(partial(limit_mention, keep_num=mention_limit))
+    if punc_limit > 0:
+        funcs.append(partial(limit_punctuation, keep_num=punc_limit))
+    if not lower_hashtag:
         funcs.append(lower_hashtag)
     if add_cap_sign:
         funcs.append(add_capital_sign)
-    if limit_punc:
-        funcs.append(partial(limit_punctuation, keep_num=keep_mention_num))
     return compose(*funcs)
 
 
 # TODO: Fix hard code of model names(also in build_model)
-def build_tokenizer(model, emoji_min_freq=None, hashtag_min_freq=None,
-                    preprocess=None):
+def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
+                    preprocess):
     assert model in {'bert', 'roberta'}
     if model in {'bert', 'roberta'}:
         if model == 'bert':
             tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         else:
             tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-
         tokenizer.add_tokens(['@USER'])
-        if emoji_min_freq is not None:
+        if emoji_min_freq > 0:
             new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
             tokenizer.add_tokens(new_tokens)
-        if hashtag_min_freq is not None:
+        if hashtag_min_freq > 0:
             new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
             tokenizer.add_tokens(new_tokens)
+        if add_cap_sign:
+            tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
         if preprocess is not None:
             tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
 

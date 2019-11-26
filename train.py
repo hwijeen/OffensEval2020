@@ -26,11 +26,13 @@ def parse_args():
     preprocess = parser.add_argument_group('Preprocessing options')
     #preprocess.add_argument('--capitalize')
     preprocess.add_argument('--punctuation')
-    preprocess.add_argument('--keep_emoji', action='store_true')
+    preprocess.add_argument('--demojize', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
-    preprocess.add_argument('--keep_hashtag', action='store_true')
+    preprocess.add_argument('--lower_hashtag', action='store_true')
     preprocess.add_argument('--hashtag_min_freq', type=int, default=10)
-    preprocess.add_argument('--keep_mention_num', type=int, default=3)
+    preprocess.add_argument('--add_cap_sign', action='store_true')
+    preprocess.add_argument('--mention_limit', type=int, default=3)
+    preprocess.add_argument('--punc_limit', type=int, default=3)
     preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
@@ -70,12 +72,15 @@ def generate_exp_name(args):
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
-    preprocess = build_preprocess(keep_emoji=args.keep_emoji,
-                                  keep_mention_num=args.keep_mention_num,
-                                  keep_hashtag=args.keep_hashtag)
+    preprocess = build_preprocess(demojize=args.demojize,
+                                  mention_limit=args.mention_limit,
+                                  punc_limit=args.punc_limit,
+                                  lower_hashtag=args.lower_hashtag,
+                                  add_cap_sign=args.add_cap_sign)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,
+                                add_cap_sign=args.add_cap_sign,
                                 preprocess=preprocess)
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,

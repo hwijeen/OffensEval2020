@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-from utils import calc_acc
+from utils import calc_acc, calc_f1
 
 
 # TODO: early stopping
@@ -48,15 +48,17 @@ class Trainer:
 
             if step % self.record_every == 0:
                 val_loss = self.compute_entire_loss(self.val_iter)
-                val_acc = self.evaluate(self.val_iter)
+                val_acc, val_f1 = self.evaluate(self.val_iter)
                 self.record(loss, val_loss, step)
                 print(f'At step: {step}')
-                print(f'\tTrain loss: {loss.item()}')
-                print(f'\tVal loss: {val_loss.item()}')
-                print(f'\tval acc: {val_acc}')
+                print(f'\tTrain loss: {loss.item():.6f}')
+                print(f'\tVal loss: {val_loss.item():.6f}')
+                print(f'\tVal acc: {val_acc:.2f}')
+                print(f'\tVal F1: {val_f1:.2f}')
 
-                train_acc = self.evaluate(self.train_iter)
-                print(f'\tTrain acc: {train_acc} - for debug!')
+                train_acc, train_f1 = self.evaluate(self.train_iter)
+                print(f'\tTrain acc: {train_acc:.2f} - for debug!')
+                print(f'\tTrain f1: {train_f1:.2f} - for debug!')
 
             if step == train_step:
                 self.writer.close()
@@ -80,8 +82,9 @@ class Trainer:
                 predictions += pred.tolist()
                 golds += batch.label.tolist()
         acc = calc_acc(predictions, golds)
+        f1 = calc_f1(predictions, golds)
         data_iter.repeat = True
-        return acc
+        return acc, f1
 
 # TODO: is this necessary?
 def build_trainer(model, data, optimizer, scheduler, max_grad_norm, record_every,

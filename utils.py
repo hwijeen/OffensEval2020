@@ -49,7 +49,7 @@ def calc_acc(pred, gold):
     """
     return accuracy_score(y_true=gold, y_pred=pred)
 
-def calc_f1(pred, gold, labels=None, pos_label=1, average='binary'):
+def calc_f1(pred, gold, labels=None, pos_label=1, average='macro'):
     """
     Calculates f1 score between prediction and gold label.
     For our task, set average='macro'
