@@ -49,28 +49,38 @@ class Trainer:
             if step % self.record_every == 0:
                 val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc, val_f1 = self.evaluate(self.val_iter)
-                self.record(loss, val_loss, step)
-                print(f'At step: {step}')
-                print(f'\tTrain loss: {loss.item():.6f}')
-                print(f'\tVal loss: {val_loss.item():.6f}')
-                print(f'\tVal acc: {val_acc:.2f}')
-                print(f'\tVal F1: {val_f1:.2f}')
-
-                train_acc, train_f1 = self.evaluate(self.train_iter)
-                print(f'\tTrain acc: {train_acc:.2f} - for debug!')
-                print(f'\tTrain f1: {train_f1:.2f} - for debug!')
+                train_acc, train_f1 = self.evaluate(self.train_iter) # optional
+                self.record(step, loss, val_loss, val_acc, val_f1, train_acc, train_f1)
+                self.report(step, loss, val_loss, val_acc, val_f1, train_acc, train_f1)
 
             if step == train_step:
+                test_acc, test_f1 = self.evaluate(self.test_iter)
+                print('*'*60)
+                print(f'Train finished with test acc:{test_acc}, test_f1:{test_f1}')
+                print('*'*60)
                 self.writer.close()
                 return self.model
 
-    def record(self, loss, val_loss, step, train_acc=None, val_acc=None):
+    def record(self, step, loss, val_loss, val_acc, val_f1, train_acc=None, train_f1=None):
         self.writer.add_scalar('Loss/train', loss.item(), step)
         self.writer.add_scalar('Loss/val', val_loss.item(), step)
+        self.writer.add_scalar('Acc/val', val_acc, step)
+        self.writer.add_scalar('F1/val', val_f1, step)
         if train_acc is not None:
-            self.writer.add_scalar('Accuracy/train', train_acc, step)
-        if val_acc is not None:
-            self.writer.add_scalar('Accuracy/val', val_acc, step)
+            self.writer.add_scalar('Acc/train', train_acc, step)
+        if train_f1 is not None:
+            self.writer.add_scalar('F1/train', train_f1, step)
+
+    def report(self, step, loss, val_loss, val_acc, val_f1, train_acc=None, train_f1=None):
+        print(f'At step: {step}')
+        print(f'\tTrain loss: {loss.item():.6f}')
+        print(f'\tVal loss: {val_loss.item():.6f}')
+        print(f'\tVal acc: {val_acc:.2f}')
+        print(f'\tVal F1: {val_f1:.2f}')
+        if train_acc is not None:
+            print(f'\tTrain acc: {train_acc:.2f} - for debug!')
+        if train_f1 is not None:
+            print(f'\tTrain f1: {train_f1:.2f} - for debug!')
 
     def evaluate(self, data_iter):
         self.model.eval()

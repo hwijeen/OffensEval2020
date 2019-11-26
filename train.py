@@ -15,16 +15,16 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     datefmt = '%m/%d/%Y %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# TODO: inference.py with test data
+# TODO: data loading when test data has no label
 def parse_args():
     parser = argparse.ArgumentParser()
     data = parser.add_argument_group('Data')
     data.add_argument('--task', choices=['a', 'b', 'c'], default='a')
     data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
-    data.add_argument('--test_path', default='../data/testset-level.tsv')
+    data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
 
     preprocess = parser.add_argument_group('Preprocessing options')
-    #preprocess.add_argument('--capitalize')
     preprocess.add_argument('--punctuation')
     preprocess.add_argument('--demojize', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
@@ -49,7 +49,7 @@ def parse_args():
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=64)
     training.add_argument('--cuda', type=int, default=0)
-    training.add_argument('--train_step', type=int, default=100000)
+    training.add_argument('--train_step', type=int, default=300)
     training.add_argument('--record_every', type=int, default=10)
 
     parser.add_argument('--debug', action='store_true')
@@ -57,7 +57,6 @@ def parse_args():
     args = parser.parse_args()
     # TODO: clean these hacks..
     args.device = torch.device(f'cuda:{args.cuda}') if torch.cuda.is_available() else torch.device('cpu')
-    args.test_path = args.test_path.replace('level', f'level{args.task}')
     if args.debug:
         args.train_path = '../data/debug_train.tsv'
         print('Debug mode!!!!')
@@ -65,10 +64,14 @@ def parse_args():
     return args
 
 def generate_exp_name(args):
-    lr = f'lr{args.lr}'
-    exp_name = lr
+    model = f'model_{args.model}'
+    pooling = f'pooling_{args.pooling}'
+    lr = f'lr_{args.lr}'
+    task = f'task_{args.task}'
+    exp_name = '_'.join([model, pooling, lr, task])
     return exp_name
 
+# TODO: save args for reproducible exp
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     logger.info(f'Number of vocab and data size')
     trained_model = trainer.train(args.train_step)
 
-    file_name = 'runs/'+exp_name+'/test.tsv'
-    write_result_to_file(trained_model, trainer.val_iter, tokenizer,
+    file_name = f'runs/{exp_name}.tsv'
+    write_result_to_file(trained_model, trainer.test_iter, tokenizer,
                          file_name, exp_name)
 

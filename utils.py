@@ -109,15 +109,17 @@ def write_result_to_file(model, data_iter, tokenizer, file_name, exp_name):
             preds += map(str, pred)
             golds += map(str, gold)
             probs += [' '.join(map(str, p)) for p in prob]
-    write_to_file(file_name, exp_name, ids, tweets, preds, golds, probs)
+    header = ['id', 'tweet', 'pred', 'gold', 'prob']
+    write_to_file(file_name, exp_name, header, ids, tweets, preds, golds, probs)
 
 format_to_sep = {'.tsv': '\t', '.csv': ','}
-def write_to_file(file_name, exp_name, *args):
+def write_to_file(file_name, exp_name, header, *args):
     basename, format = os.path.splitext(file_name)
     assert format in format_to_sep
     sep = format_to_sep[format]
     with open(file_name, 'w') as f:
         f.write(exp_name + '\n')
+        f.write(sep.join(header) + '\n')
         for line in zip(*args):
             sep_line = sep.join(line) + '\n'
             f.write(sep_line)
