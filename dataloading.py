@@ -6,20 +6,15 @@ from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
-
+# TODO: max_length with torchtext or berttokenizer?
+# TODO: how to smoothly incorporate into transformer..
 class BERTField(Field):
     """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode """
-    def __init__(self, numericalize_func, *args, **kwargs):
+    def __init__(self, tokenizer, *args, **kwargs):
+        kwargs['init_token'] = tokenizer._cls_token
+        kwargs['eos_token'] = tokenizer._sep_token
         super().__init__(*args, **kwargs)
-        self.numericalize_func = numericalize_func
-
-    def preprocess(self, x):
-        """To enable preprocessing before tokenization"""
-        if self.preprocessing is not None:
-            x = self.preprocessing(x)
-        if self.sequential:
-            x = self.tokenize(x.rstrip('\n'))
-        return x
+        self.numericalize_func = tokenizer.encode
 
     def numericalize(self, arr, device=None):
         """To use BertTokenizer.encode"""
@@ -31,7 +26,6 @@ class BERTField(Field):
         return var, lengths
 
 
-# TODO: MAXLEN in tweet field
 class Data(object):
     """ Holds Datasets, Iterators. """
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
@@ -70,7 +64,7 @@ class Data(object):
         self.train.fields['label'].build_vocab(self.train, self.val)
 
     # TODO: enable loading only test data
-    # QUESTION: balanced batch?
+    # TODO: balanced batch needed?
     def build_iterator(self, batch_size, device):
         return BucketIterator.splits((self.train, self.val, self.test),
                                       batch_size=batch_size,
@@ -93,7 +87,7 @@ class BertData(Data):
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        TWEET = BERTField(tokenizer.encode, include_lengths=True,
+        TWEET = BERTField(tokenizer, include_lengths=True,
                           use_vocab=False, batch_first=True,
                           preprocessing=preprocessing,
                           tokenize=tokenizer.tokenize,
