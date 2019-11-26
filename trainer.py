@@ -4,10 +4,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 # TODO: early stopping
-# TODO: running avg
 # TODO: logging
 # TODO: evaluation
-class Trainer():
+class Trainer:
     def __init__(self, model, train_iter, val_iter, test_iter, optimizer,
                  scheduler, max_grad_norm, record_every=100, exp_name=None):
         self.model = model
