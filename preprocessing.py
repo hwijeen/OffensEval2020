@@ -2,6 +2,7 @@ import os
 from pandas import read_csv
 import pickle
 import re
+import string
 from collections import Counter
 from functools import reduce, partial
 
@@ -19,15 +20,43 @@ def demojize(sent):
     return emoji.demojize(sent)
 
 # TODO: need a space after the last `@USER`
-def del_mention(sent, keep_num):
-    """Consecutive `@USER` up to kee_num times"""
-    return re.sub('((@USER)[\s]*){' + str(keep_num+1) + ',}', lambda match: '@USER '*keep_num, sent)
+# def del_mention(sent, keep_num):
+#     """Consecutive `@USER` up to kee_num times"""
+#     return re.sub('((@USER)[\s]*){' + str(keep_num+1) + ',}', lambda match: '@USER '*keep_num, sent)
+
+def limit_mention(sent, keep_num):
+    return _limit_pattern(sent, '@USER', keep_num)
 
 def lower_hashtag(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-#def capitalization(sent):
-#    pass
+def _has_cap(token):
+    return token.lower() != token and token.upper() != token
+
+def _all_cap(token):
+    return token.lower() != token and token.upper() == token
+
+def add_capital_sign(text):
+    exceptions = ['@USER', 'URL']
+    tokens = text.split()
+    tokens = ['<has_cap> ' + t if _has_cap(t) and t not in exceptions else t for t in tokens]
+    tokens = ['<all_cap> ' + t if _all_cap(t) and t not in exceptions else t for t in tokens]
+    return ' '.join(tokens)
+
+def _limit_pattern(sent, pattern, keep_num):
+    if pattern in string.punctuation:
+        re_pattern = re.escape(pattern)
+    else:
+        re_pattern = f'(({pattern})[\s]*)'
+        pattern = pattern + ' '
+    pattern_regex = re_pattern + '{' + str(keep_num+1) + ',}'
+    return re.sub(pattern_regex, lambda match: pattern * keep_num, sent)
+
+def limit_punctuation(sent, keep_num):
+    puncs = ['!', '?', '.']
+    for p in puncs:
+        sent = _limit_pattern(sent, p, keep_num)
+    return sent
 
 # TODO
 def numbers():
@@ -40,7 +69,7 @@ def stopwords():
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
-def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag):
+def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag, add_cap_sign, limit_punc):
     funcs = [replace_urls] # default
     if not keep_emoji:
         funcs.append(demojize)
@@ -48,6 +77,10 @@ def build_preprocess(keep_emoji, keep_mention_num, keep_hashtag):
         funcs.append(partial(del_mention, keep_num=keep_mention_num))
     if not keep_hashtag:
         funcs.append(lower_hashtag)
+    if add_cap_sign:
+        funcs.append(add_capital_sign)
+    if limit_punc:
+        funcs.append(limit_punctuation)
     return compose(*funcs)
 
 

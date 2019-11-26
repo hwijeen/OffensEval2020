@@ -1,6 +1,7 @@
 import os
 
 import torch
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 
 # Decorator to print lines before and after function execution
 def lines(func):
@@ -46,14 +47,39 @@ def calc_acc(pred, gold):
     """
     Calculates accuracy between prediction and gold label.
     """
-    if isinstance(pred, list) and isinstance(gold, list):
-        pred = torch.tensor(pred)
-        gold = torch.tensor(gold)
-    assert pred.size(0) == gold.size(0)
-    N = pred.size(0)
-    agree = (pred == gold).sum()
-    accuracy = float(agree) / N
-    return accuracy
+    return accuracy_score(y_true=gold, y_pred=pred)
+
+def calc_f1(pred, gold, labels=None, pos_label=1, average='binary'):
+    """
+    Calculates f1 score between prediction and gold label.
+    For our task, set average='macro'
+    To get score for each category, set labels=[0,1,2] or [0,1] depending on the subtask.
+    """
+    return f1_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
+
+def calc_prec(pred, gold, labels=None, pos_label=1, average='binary'):
+    """
+    Calculates precision between prediction and gold label.
+    For our task, set average='macro'
+    To get score for each category, set labels=[0,1,2] or [0,1] depending on the subtask.
+    """
+    return precision_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
+
+def calc_recall(pred, gold, labels=None, pos_label=1, average='binary'):
+    """
+    Calculates recall between prediction and gold label.
+    For our task, set average='macro'
+    To get score for each category, set labels=[0,1,2] or [0,1] depending on the subtask.
+    """
+    return precision_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
+
+def conf_matrix(pred, gold, labels=None):
+    """
+    Computes confusion matrix to evaluate the accuracy of a classification
+    Set labels=[0,1,2] or [0,1] depending on the task. ['OFF', 'NOT']
+    tn, fp, fn, tp = confusion_matrix([0, 1, 0, 1], [1, 1, 1, 0]).ravel()
+    """
+    return confusion_matrix(y_true=gold, y_pred=pred, labels=labels)
 
 def running_avg(mu, x, alpha):
     return mu + alpha * (x - mu)
