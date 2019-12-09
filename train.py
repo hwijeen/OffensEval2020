@@ -21,6 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     data = parser.add_argument_group('Data')
     data.add_argument('--task', choices=['a', 'b', 'c'], default='a')
+    data.add_argument('--data_dir', default=None)
     data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
     data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
 
@@ -60,7 +61,9 @@ def parse_args():
     if args.debug:
         args.train_path = '../data/debug_train.tsv'
         print('Debug mode!!!!')
-
+    if args.data_dir:
+        args.train_path = args.data_dir + args.train_path
+        args.test_path = args.data_dir + args.test_path
     return args
 
 def generate_exp_name(args):
