@@ -50,7 +50,9 @@ class Trainer:
                 val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc, val_f1 = self.evaluate(self.val_iter)
                 train_acc, train_f1 = self.evaluate(self.train_iter) # optional
-                self.record(step, loss, val_loss, val_acc, val_f1, train_acc, train_f1)
+                test_acc, test_f1 = self.evaluate(self.test_iter)
+                self.record(step, loss, val_loss, val_acc, val_f1,
+                            train_acc, train_f1, test_acc, test_f1)
                 self.report(step, loss, val_loss, val_acc, val_f1, train_acc, train_f1)
 
             if step == train_step:
@@ -61,7 +63,8 @@ class Trainer:
                 self.writer.close()
                 return self.model
 
-    def record(self, step, loss, val_loss, val_acc, val_f1, train_acc=None, train_f1=None):
+    def record(self, step, loss, val_loss, val_acc, val_f1,
+               train_acc=None, train_f1=None, test_acc=None, test_f1=None):
         self.writer.add_scalar('Loss/train', loss.item(), step)
         self.writer.add_scalar('Loss/val', val_loss.item(), step)
         self.writer.add_scalar('Acc/val', val_acc, step)
@@ -70,6 +73,10 @@ class Trainer:
             self.writer.add_scalar('Acc/train', train_acc, step)
         if train_f1 is not None:
             self.writer.add_scalar('F1/train', train_f1, step)
+        if test_acc is not None:
+            self.writer.add_scalar('Acc/test', test_acc, step)
+        if test_f1 is not None:
+            self.writer.add_scalar('F1/test', test_f1, step)
 
     def report(self, step, loss, val_loss, val_acc, val_f1, train_acc=None, train_f1=None):
         print(f'At step: {step}')
