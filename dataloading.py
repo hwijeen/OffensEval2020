@@ -27,15 +27,15 @@ class TransformerField(Field):
 class Data(object):
     """ Holds Datasets, Iterators. """
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device):
+                 batch_size, data_size, device):
         self.task = task
         self.device = device
         self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(train_path,
-                                                             test_path)
+        self.train, self.val, self.test = self.build_dataset(
+            train_path, test_path, data_size)
         self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
-                                                         batch_size, device)
+        self.train_iter, self.val_iter, self.test_iter =\
+            self.build_iterator(batch_size, device)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
@@ -48,14 +48,17 @@ class Data(object):
         return fields
 
     # TODO: Check stratified split is correct
-    def build_dataset(self, train_path, test_path):
+    def build_dataset(self, train_path, test_path, data_size):
         train_val = TabularDataset(train_path, 'tsv', self.fields,
                                    skip_header=True,
                                    filter_pred=lambda x: x.label != 'NULL')
         train, val = train_val.split(split_ratio=0.8, stratified=True)
-        #test = TabularDataset(test_path, 'tsv', self.fields[:2], skip_header=True) # has no label
+        train, _ = train_val.split(split_ratio=data_size, stratified=True)
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
                               filter_pred=lambda x: x.label != 'NULL')
+        print(f'Train data size: {len(train)}')
+        print(f'Valid data size: {len(val)}')
+        print(f'Test data size: {len(test)}')
         return train, val, test
 
     def build_vocab(self):
@@ -74,15 +77,15 @@ class Data(object):
 
 class BertData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device):
+                 batch_size, data_size, device):
         self.task = task
         self.device = device
         self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(train_path,
-                                                             test_path)
+        self.train, self.val, self.test = self.build_dataset(
+            train_path, test_path, data_size)
         self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
-                                                          batch_size, device)
+        self.train_iter, self.val_iter, self.test_iter =\
+            self.build_iterator(batch_size, device)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()

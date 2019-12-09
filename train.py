@@ -23,6 +23,7 @@ def parse_args():
     data.add_argument('--task', choices=['a', 'b', 'c'], default='a')
     data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
     data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
+    data.add_argument('--data_size', type=float, default=0.5)
 
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--punctuation')
@@ -68,7 +69,8 @@ def generate_exp_name(args):
     pooling = f'pooling_{args.pooling}'
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
-    exp_name = '_'.join([model, pooling, lr, task])
+    data_size = f'data_size_{args.data_size}'
+    exp_name = '_'.join([model, pooling, lr, task, data_size])
     return exp_name
 
 # TODO: save args for reproducible exp
@@ -92,6 +94,7 @@ if __name__ == "__main__":
                            preprocessing=None,
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
+                           data_size=args.data_size,
                            device=args.device)
     model = build_model(task=args.task,
                         model=args.model,
@@ -116,7 +119,7 @@ if __name__ == "__main__":
     logger.info(f'Number of vocab and data size')
     trained_model = trainer.train(args.train_step)
 
-    file_name = f'runs/{exp_name}.tsv'
+    file_name = f'runs/{exp_name}/prediction.tsv'
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
                          file_name, exp_name)
 
