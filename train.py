@@ -52,7 +52,7 @@ def parse_args():
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=300)
     training.add_argument('--record_every', type=int, default=10)
-
+    training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args()
@@ -61,7 +61,6 @@ def parse_args():
     if args.debug:
         args.train_path = '../data/debug_train.tsv'
         print('Debug mode!!!!')
-
     return args
 
 def generate_exp_name(args):
@@ -70,7 +69,7 @@ def generate_exp_name(args):
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
     data_size = f'data_size_{args.data_size}'
-    exp_name = '_'.join([model, pooling, lr, task, data_size])
+    exp_name = '_'.join([model, pooling, lr, task, data_size, args.note])
     return exp_name
 
 # TODO: save args for reproducible exp
