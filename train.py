@@ -23,7 +23,7 @@ def parse_args():
     data.add_argument('--task', choices=['a', 'b', 'c'], default='a')
     data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
     data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
-    data.add_argument('--data_size', type=float, default=0.5)
+    data.add_argument('--data_size', type=float, default=1.0)
 
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--punctuation')
@@ -38,7 +38,7 @@ def parse_args():
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
-    model.add_argument('--pooling', choices=['cls', 'avg'], default='cls')
+    model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.0001)
