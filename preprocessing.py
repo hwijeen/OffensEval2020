@@ -15,7 +15,7 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
-def demojize(sent):
+def replace_emoji(sent):
     """ Replace emoticon with predefined :text:. """
     return emoji.demojize(sent)
 
@@ -27,7 +27,7 @@ def demojize(sent):
 def limit_mention(sent, keep_num):
     return _limit_pattern(sent, '@USER', keep_num)
 
-def lower_hashtag(sent):
+def lower_hashtag_(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
 def _has_cap(token):
@@ -73,13 +73,13 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
                      add_cap_sign):
     funcs = [replace_urls] # default
     if not demojize:
-        funcs.append(demojize)
+        funcs.append(replace_emoji)
     if mention_limit > 0:
         funcs.append(partial(limit_mention, keep_num=mention_limit))
     if punc_limit > 0:
         funcs.append(partial(limit_punctuation, keep_num=punc_limit))
     if not lower_hashtag:
-        funcs.append(lower_hashtag)
+        funcs.append(lower_hashtag_)
     if add_cap_sign:
         funcs.append(add_capital_sign)
     return compose(*funcs)

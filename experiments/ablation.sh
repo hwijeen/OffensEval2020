@@ -1,3 +1,9 @@
+TEST_FILE=../data/olid-test-v1.0.tsv
+if [ -f "$TEST_FILE" ]; then
+  echo "$TEST_FILE exists"
+else
+  python merge_test.py
+fi
 python train.py --emoji_min_freq 0 --mention_limit 0 --hashtag_min_freq 0 --punc_limit 0 --note none
 python train.py --demojize --emoji_min_freq 0 --mention_limit 0 --hashtag_min_freq 0 --punc_limit 0 --note demojize
 python train.py --emoji_min_freq 10 --mention_limit 0 --hashtag_min_freq 0  --punc_limit 0 --note min_emoji_10
