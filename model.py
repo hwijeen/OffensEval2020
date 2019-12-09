@@ -6,6 +6,7 @@ from utils import sequence_mask
 
 task_to_n_class = {'a':2, 'b':2, 'c':3}
 
+
 class CLSClassifier(nn.Module):
     def __init__(self, transformer_model, n_class):
         super().__init__()
