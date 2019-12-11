@@ -45,6 +45,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--warmup', type=int, default=100)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
+    optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
 
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=32)
@@ -102,6 +103,7 @@ if __name__ == "__main__":
                                                      lr=args.lr,
                                                      eps=(args.beta1, args.beta2),
                                                      warmup=args.warmup,
+                                                     weight_decay=args.weight_decay,
                                                      train_step=args.train_step)
     trainer = build_trainer(model=model,
                             data=olid_data,
