@@ -41,17 +41,18 @@ def parse_args():
     model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
-    optimizer_scheduler.add_argument('--lr', type=float, default=0.0001)
+    optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--warmup', type=int, default=100)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
 
     training = parser.add_argument_group('Training options')
-    training.add_argument('--batch_size', type=int, default=64)
+    training.add_argument('--batch_size', type=int, default=32)
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=300)
     training.add_argument('--record_every', type=int, default=10)
+    training.add_argument('--patience', type=int, default=10)
     training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 
@@ -110,6 +111,7 @@ if __name__ == "__main__":
                             optimizer=optimizer,
                             scheduler=scheduler,
                             max_grad_norm=args.max_grad_norm,
+                            patience=args.patience,
                             record_every=args.record_every,
                             exp_name=exp_name)
 
