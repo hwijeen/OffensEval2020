@@ -32,7 +32,7 @@ class EarlyStopping:
 
     def __call__(self, val_loss):
 
-        score = val_loss # because small is better
+        score = val_loss # remove minus when using f1 instead of loss
 
         if self.best_score is None:
             self.best_score = score
