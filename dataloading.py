@@ -6,7 +6,6 @@ from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
-# TODO: max_length with torchtext or berttokenizer?
 class TransformerField(Field):
     """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
     or RobertaTokenizer.encode"""

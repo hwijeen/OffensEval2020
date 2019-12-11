@@ -47,6 +47,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--warmup', type=int, default=100)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
+    optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
 
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=32)
@@ -71,7 +72,10 @@ def generate_exp_name(args):
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
     data_size = f'data_size_{args.data_size}'
-    exp_name = '_'.join([model, pooling, lr, task, data_size, args.note])
+    weight_decay = f'weight_decay_{args.weight_decay}'
+    layer_decrease = f'layer_decrease_{args.layer_decrease}'
+    exp_name = '_'.join([model, pooling, lr, task, data_size, weight_decay,
+                         layer_decrease, args.note])
     return exp_name
 
 # TODO: save args for reproducible exp
@@ -107,6 +111,7 @@ if __name__ == "__main__":
                                                      eps=(args.beta1, args.beta2),
                                                      warmup=args.warmup,
                                                      weight_decay=args.weight_decay,
+                                                     layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
     trainer = build_trainer(model=model,
                             data=olid_data,
