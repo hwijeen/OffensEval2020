@@ -102,7 +102,7 @@ def write_result_to_file(model, data_iter, tokenizer, file_name, exp_name):
                       for tweet in batch.tweet[0]]
             pred = model.predict(*batch.tweet).tolist()
             gold = batch.label.tolist()
-            prob = model(*batch.tweet).tolist()
+            prob = model(*batch.tweet).softmax(1).tolist()
 
             ids += id_
             tweets += tweet

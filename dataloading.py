@@ -6,7 +6,6 @@ from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
-# TODO: max_length with torchtext or berttokenizer?
 class TransformerField(Field):
     """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
     or RobertaTokenizer.encode"""
@@ -31,11 +30,11 @@ class Data(object):
         self.task = task
         self.device = device
         self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(train_path,
-                                                             test_path)
+        self.train, self.val, self.test = self.build_dataset(
+            train_path, test_path)
         self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
-                                                         batch_size, device)
+        self.train_iter, self.val_iter, self.test_iter =\
+            self.build_iterator(batch_size, device)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
@@ -53,9 +52,11 @@ class Data(object):
                                    skip_header=True,
                                    filter_pred=lambda x: x.label != 'NULL')
         train, val = train_val.split(split_ratio=0.9, stratified=True)
-        #test = TabularDataset(test_path, 'tsv', self.fields[:2], skip_header=True) # has no label
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
                               filter_pred=lambda x: x.label != 'NULL')
+        print(f'Train data size: {len(train)}')
+        print(f'Valid data size: {len(val)}')
+        print(f'Test data size: {len(test)}')
         return train, val, test
 
     def build_vocab(self):
@@ -74,15 +75,15 @@ class Data(object):
 
 class BertData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device):
+                batch_size, device):
         self.task = task
         self.device = device
         self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(train_path,
-                                                             test_path)
+        self.train, self.val, self.test = self.build_dataset(
+            train_path, test_path)
         self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter = self.build_iterator(
-                                                          batch_size, device)
+        self.train_iter, self.val_iter, self.test_iter =\
+            self.build_iterator(batch_size, device)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()

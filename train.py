@@ -25,7 +25,7 @@ def parse_args():
     data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
 
     preprocess = parser.add_argument_group('Preprocessing options')
-    preprocess.add_argument('--punctuation')
+    preprocess.add_argument('--punctuation') # not implemented
     preprocess.add_argument('--demojize', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
     preprocess.add_argument('--lower_hashtag', action='store_true')
@@ -37,7 +37,7 @@ def parse_args():
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
-    model.add_argument('--pooling', choices=['cls', 'avg'], default='cls')
+    model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
@@ -46,11 +46,12 @@ def parse_args():
     optimizer_scheduler.add_argument('--warmup', type=int, default=100)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
+    optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
 
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=32)
     training.add_argument('--cuda', type=int, default=0)
-    training.add_argument('--train_step', type=int, default=300)
+    training.add_argument('--train_step', type=int, default=700)
     training.add_argument('--record_every', type=int, default=10)
     training.add_argument('--patience', type=int, default=10)
     training.add_argument('--note', type=str, default='')
@@ -104,6 +105,7 @@ if __name__ == "__main__":
                                                      eps=(args.beta1, args.beta2),
                                                      warmup=args.warmup,
                                                      weight_decay=args.weight_decay,
+                                                     layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
     trainer = build_trainer(model=model,
                             data=olid_data,

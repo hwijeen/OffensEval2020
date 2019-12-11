@@ -32,7 +32,7 @@ class EarlyStopping:
 
     def __call__(self, val_loss):
 
-        score = val_loss # because small is better
+        score = val_loss # remove minus when using f1 instead of loss
 
         if self.best_score is None:
             self.best_score = score
@@ -103,8 +103,9 @@ class Trainer:
                 val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc, val_f1 = self.evaluate(self.val_iter)
                 train_acc, train_f1 = self.evaluate(self.train_iter) # optional
+                test_acc, test_f1 = self.evaluate(self.test_iter)
                 self.record(step, loss, val_loss, val_acc, val_f1,
-                            train_acc, train_f1)
+                            train_acc, train_f1, test_acc, test_f1)
                 if self.verbose:
                     self.report(step, loss, val_loss, val_acc, val_f1,
                                 train_acc, train_f1)
@@ -118,13 +119,13 @@ class Trainer:
             if step == train_step:
                 test_acc, test_f1 = self.evaluate(self.test_iter)
                 print('*'*60)
-                print(f'Train finished with test acc:{test_acc},test_f1:{test_f1}')
+                print(f'Train finished with test acc:{test_acc}, test_f1:{test_f1}')
                 print('*'*60)
                 self.writer.close()
                 return self.model
 
-    def record(self, step, loss, val_loss, val_acc, val_f1, train_acc=None,
-               train_f1=None):
+    def record(self, step, loss, val_loss, val_acc, val_f1,
+               train_acc=None, train_f1=None, test_acc=None, test_f1=None):
         self.writer.add_scalar('Loss/train', loss.item(), step)
         self.writer.add_scalar('Loss/val', val_loss.item(), step)
         self.writer.add_scalar('Acc/val', val_acc, step)
@@ -133,6 +134,10 @@ class Trainer:
             self.writer.add_scalar('Acc/train', train_acc, step)
         if train_f1 is not None:
             self.writer.add_scalar('F1/train', train_f1, step)
+        if test_acc is not None:
+            self.writer.add_scalar('Acc/test', test_acc, step)
+        if test_f1 is not None:
+            self.writer.add_scalar('F1/test', test_f1, step)
 
     def report(self, step, loss, val_loss, val_acc, val_f1, train_acc=None,
                train_f1=None):
