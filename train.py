@@ -26,7 +26,7 @@ def parse_args():
     data.add_argument('--data_size', type=float, default=1.0)
 
     preprocess = parser.add_argument_group('Preprocessing options')
-    preprocess.add_argument('--punctuation')
+    preprocess.add_argument('--punctuation') # not implemented
     preprocess.add_argument('--demojize', action='store_true')
     preprocess.add_argument('--emoji_min_freq', type=int, default=10)
     preprocess.add_argument('--lower_hashtag', action='store_true')

@@ -52,7 +52,7 @@ class Data(object):
         train_val = TabularDataset(train_path, 'tsv', self.fields,
                                    skip_header=True,
                                    filter_pred=lambda x: x.label != 'NULL')
-        train, val = train_val.split(split_ratio=0.8, stratified=True)
+        train, val = train_val.split(split_ratio=0.9, stratified=True)
         if data_size != 1.0:
             train, _ = train_val.split(split_ratio=data_size, stratified=True)
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
