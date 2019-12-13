@@ -98,9 +98,6 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(lower_hashtag_)
     if add_cap_sign:
         funcs.append(add_capital_sign)
-    if mask_offensive > 0:
-        off_words = load_offensive_list()
-        funcs.append(partial(replace_offensive, off_words=off_words, p=mask_offensive))
     return compose(*funcs)
 
 
@@ -129,6 +126,7 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
         # TODO: when not using bert
         pass
     return tokenizer
+
 
 def load_offensive_list():
     with open(resources_dir + 'offensive_words.txt', 'r') as f:
