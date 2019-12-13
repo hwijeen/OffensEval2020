@@ -59,16 +59,16 @@ class AvgPoolClassifier(CLSClassifier):
         return x
 
 # TODO: fix hardcoding of model names(need to be compatiable with preprocessing)
-def build_model(task, model, pooling, device, tokenizer):
+def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
     assert model in ['bert', 'roberta']
     assert pooling in ['cls', 'avg']
     n_class = task_to_n_class[task]
     if model == 'bert':
-        base_model = BertModel.from_pretrained('bert-base-uncased')
-        base_model.resize_token_embeddings(len(tokenizer))
+        base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
+        base_model.resize_token_embeddings(new_num_tokens)
     elif model == 'roberta':
-        base_model = RobertaModel.from_pretrained('roberta-base')
-        base_model.resize_token_embeddings(len(tokenizer))
+        base_model = RobertaModel.from_pretrained('roberta-base', **kwargs)
+        base_model.resize_token_embeddings(new_num_tokens)
     else:
         pass
 
