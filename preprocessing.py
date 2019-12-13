@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from pandas import read_csv
 import pickle
 import re
@@ -39,6 +40,13 @@ def _has_cap(token):
 def _all_cap(token):
     return token.lower() != token and token.upper() == token
 
+def replace(from_, to_, p):
+    # replace a word <from_> with probability p to token <to_>
+    if np.random.uniform(0, 1) < p:
+        return to_
+    else:
+        return from_
+
 def add_capital_sign(text):
     exceptions = ['@USER', 'URL']
     tokens = text.split()
@@ -72,8 +80,13 @@ def stopwords():
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
+def replace_offensive(sent, off_words, p, mask='[UNK]'):
+    tokens = sent.split()
+    tokens = [replace(from_=t, to_=mask, p=p) if t in off_words else t for t in tokens]
+    return ' '.join(tokens)
+
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign):
+                     add_cap_sign, mask_offensive):
     funcs = [replace_urls] # default
     if not demojize:
         funcs.append(replace_emoji)
@@ -85,6 +98,9 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(lower_hashtag_)
     if add_cap_sign:
         funcs.append(add_capital_sign)
+    if mask_offensive > 0:
+        off_words = load_offensive_list()
+        funcs.append(partial(replace_offensive, off_words=off_words, p=mask_offensive))
     return compose(*funcs)
 
 
@@ -113,6 +129,12 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
         # TODO: when not using bert
         pass
     return tokenizer
+
+def load_offensive_list():
+    with open(resources_dir + 'offensive_words.txt', 'r') as f:
+        words = [w.rstrip() for w in f.readlines()]
+    return set(words)
+
 
 def build_freq_dict(train_corpus, which):
     freq_dict = count(train_corpus, which)

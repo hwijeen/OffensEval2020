@@ -34,6 +34,7 @@ def parse_args():
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
     preprocess.add_argument('--tokenize', default='bert')
+    preprocess.add_argument('--mask_offensive', type=float, default=0.0)
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
@@ -83,7 +84,8 @@ if __name__ == "__main__":
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
                                   lower_hashtag=args.lower_hashtag,
-                                  add_cap_sign=args.add_cap_sign)
+                                  add_cap_sign=args.add_cap_sign,
+                                  mask_offensive=args.mask_offensive)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,
