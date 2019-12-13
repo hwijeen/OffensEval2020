@@ -36,8 +36,10 @@ def parse_args():
     preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
-    model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
+    model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
     model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
+    model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
+    model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
@@ -98,8 +100,10 @@ if __name__ == "__main__":
     model = build_model(task=args.task,
                         model=args.model,
                         pooling=args.pooling,
-                        device=args.device,
-                        tokenizer=tokenizer)
+                        new_num_tokens=len(tokenizer),
+                        hidden_dropout_prob=args.hidden_dropout_prob,
+                        attention_probs_dropout_prob=args.attention_probs_dropout_prob,
+                        device=args.device)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
                                                      eps=(args.beta1, args.beta2),

@@ -1,7 +1,7 @@
 import torch
 
 import torch.nn as nn
-from transformers import BertModel, RobertaModel
+from transformers import BertModel, RobertaModel, XLMModel, XLNetModel
 from utils import sequence_mask
 
 task_to_n_class = {'a':2, 'b':2, 'c':3}
@@ -49,7 +49,11 @@ class AvgPoolClassifier(CLSClassifier):
         
         """
         x_mask = sequence_mask(length, pad=0)  # (batch_size, max_length)
-        x, _ = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+        try: # bert, roberta
+            x, _ = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+        except ValueError: # xlm, xlnet
+            x = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+            x = x[0]
         x = x.masked_fill_(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=1)                 # (batch_size, 1, hidden_size)
         x = x.squeeze()                         # (batch_size, hidden_size)
@@ -58,17 +62,23 @@ class AvgPoolClassifier(CLSClassifier):
         x = self.out(x)                         # (batch_size, NUM_CLASS)
         return x
 
+
 # TODO: fix hardcoding of model names(need to be compatiable with preprocessing)
-def build_model(task, model, pooling, device, tokenizer):
-    assert model in ['bert', 'roberta']
-    assert pooling in ['cls', 'avg']
+def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
     n_class = task_to_n_class[task]
     if model == 'bert':
-        base_model = BertModel.from_pretrained('bert-base-uncased')
-        base_model.resize_token_embeddings(len(tokenizer))
+        #base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
+        base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
+        base_model.resize_token_embeddings(new_num_tokens)
     elif model == 'roberta':
-        base_model = RobertaModel.from_pretrained('roberta-base')
-        base_model.resize_token_embeddings(len(tokenizer))
+        base_model = RobertaModel.from_pretrained('roberta-base', **kwargs)
+        base_model.resize_token_embeddings(new_num_tokens)
+    elif model =='xlm':
+        base_model = XLMModel.from_pretrained('xlm-mlm-en-2048')
+        base_model.resize_token_embeddings(new_num_tokens)
+    elif model == 'xlnet':
+        base_model = XLNetModel.from_pretrained('xlnet-base-cased')
+        base_model.resize_token_embeddings(new_num_tokens)
     else:
         pass
 

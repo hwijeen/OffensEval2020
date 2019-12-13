@@ -10,50 +10,46 @@ from utils import calc_acc, calc_f1
 # TODO: logging
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
-    def __init__(self, model, patience, savedir, delta=0, verbose=False):
-        """
-        Args:
-            patience (int): How long to wait after last time validation loss improved.
-                            Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement.
-                            Default: False
-            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
-                            Default: 0
-        """
+    def __init__(self, model, patience, savedir, delta=0, mode='max', verbose=False):
         self.model = model
         self.patience = patience
+        self.delta = delta
+        self.mode = mode
         self.savedir = os.path.join(savedir, 'best_model.pt')
         self.verbose = verbose
         self.counter = 0
+        self.best_step = None
         self.best_score = None
+        self.prev_best_score = float('inf')
         self.early_stop = False
-        self.val_loss_min = float('inf')
-        self.delta = delta
 
-    def __call__(self, val_loss):
+    def __call__(self, step, val_score):
 
-        score = val_loss # remove minus when using f1 instead of loss
+        score = -val_score if self.mode == 'min' else val_score
 
         if self.best_score is None:
+            self.best_step = step
             self.best_score = score
-            self.save_checkpoint(val_loss)
+            self.save_checkpoint()
         elif score < self.best_score + self.delta:
             self.counter += 1
             print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
+            self.best_step = step
             self.best_score = score
-            self.save_checkpoint(val_loss)
+            self.save_checkpoint()
             self.counter = 0
 
-    def save_checkpoint(self, val_loss):
-        '''Saves model when validation loss decrease.'''
+    def save_checkpoint(self):
+        '''Saves model when validation score improves.'''
+        curr_score = -self.best_score if self.mode == 'min' else self.best_score
         if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} -->'
-                  f'{val_loss:.6f}).  Saving model ...')
+            print(f'Best score on validation improved ({self.prev_best_score:.6f} -->'
+                  f'{curr_score:.6f}).  Saving model ...')
         torch.save(self.model.state_dict(), self.savedir)
-        self.val_loss_min = val_loss
+        self.prev_best_score = curr_score
 
 
 
@@ -109,17 +105,17 @@ class Trainer:
                 if self.verbose:
                     self.report(step, loss, val_loss, val_acc, val_f1,
                                 train_acc, train_f1)
-                self.early_stopper(val_f1)
+                self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
-                    print(f'Early stopping at {step} step!')
-                    self.model.load_state_dict(
-                        torch.load(self.early_stopper.savedir))
+                    print(f'Early stopping at {step} step.')
+                    self.model.load_state_dict(torch.load(self.early_stopper.savedir))
                     step = train_step # terminates training in the next line
 
             if step == train_step:
                 test_acc, test_f1 = self.evaluate(self.test_iter)
                 print('*'*60)
-                print(f'Train finished with test acc:{test_acc}, test_f1:{test_f1}')
+                print(f'Train finished at {self.early_stopper.best_step} step,')
+                print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
                 print('*'*60)
                 self.writer.close()
                 return self.model
