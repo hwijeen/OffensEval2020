@@ -1,10 +1,46 @@
 import logging
+from functools import partial
 
 import torch
-from torchtext.data import RawField, Field, TabularDataset, BucketIterator
+from torchtext.data import RawField, Field, TabularDataset, BucketIterator, Batch
+from preprocessing import load_offensive_list, replace_random
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
+
+
+class MaskedDataIterator(BucketIterator):
+    def __init__(self, dataset, batch_size, **kwargs):
+        mask_offensive = kwargs.pop('mask_offensive')
+        mask_random = kwargs.pop('mask_random')
+        super().__init__(dataset, batch_size, **kwargs)
+        self.mask = max(mask_offensive, mask_random) if self.train else 0.0
+        self.offensive_list = load_offensive_list() if mask_offensive > 0 else None
+        self.masking_ft = partial(replace_random, word_set=self.offensive_list, p=self.mask)
+
+    def __iter__(self):
+        while True:
+            self.init_epoch()
+            for idx, minibatch in enumerate(self.batches):
+                # fast-forward if loaded from state
+                for example in minibatch:
+                    example.tweet = self.masking_ft(example.tweet)
+                if self._iterations_this_epoch > idx:
+                    continue
+                self.iterations += 1
+                self._iterations_this_epoch += 1
+                if self.sort_within_batch:
+                    # NOTE: `rnn.pack_padded_sequence` requires that a minibatch
+                    # be sorted by decreasing order, which requires reversing
+                    # relative to typical sort keys
+                    if self.sort:
+                        minibatch.reverse()
+                    else:
+                        minibatch.sort(key=self.sort_key, reverse=True)
+                yield Batch(minibatch, self.dataset, self.device)
+            if not self.repeat:
+                return
+
 
 class TransformerField(Field):
     """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
@@ -26,9 +62,11 @@ class TransformerField(Field):
 class Data(object):
     """ Holds Datasets, Iterators. """
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device):
+                 batch_size, device, mask_offensive, mask_random):
         self.task = task
         self.device = device
+        self.mask_offensive = mask_offensive
+        self.mask_random = mask_random
         self.fields = self.build_field(task, tokenizer, preprocessing)
         self.train, self.val, self.test = self.build_dataset(
             train_path, test_path)
@@ -66,18 +104,21 @@ class Data(object):
     # TODO: enable loading only test data
     # TODO: balanced batch needed?
     def build_iterator(self, batch_size, device):
-        return BucketIterator.splits((self.train, self.val, self.test),
-                                      batch_size=batch_size,
-                                      sort_key=lambda x: len(x.tweet),
-                                      sort_within_batch=True, repeat=True,
-                                      device=device)
+        return MaskedDataIterator.splits((self.train, self.val, self.test),
+                                         batch_size=batch_size,
+                                         sort_key=lambda x: len(x.tweet),
+                                         sort_within_batch=True, repeat=True,
+                                         device=device, mask_offensive=self.mask_offensive,
+                                         mask_random=self.mask_random)
 
 
 class BertData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                batch_size, device):
+                 batch_size, device, mask_offensive, mask_random):
         self.task = task
         self.device = device
+        self.mask_offensive = mask_offensive
+        self.mask_random = mask_random
         self.fields = self.build_field(task, tokenizer, preprocessing)
         self.train, self.val, self.test = self.build_dataset(
             train_path, test_path)

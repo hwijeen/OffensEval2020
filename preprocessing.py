@@ -80,13 +80,16 @@ def stopwords():
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
-def replace_offensive(sent, off_words, p, mask='[UNK]'):
-    tokens = sent.split()
-    tokens = [replace(from_=t, to_=mask, p=p) if t in off_words else t for t in tokens]
-    return ' '.join(tokens)
+def replace_random(tokens, p, word_set=None, mask='[UNK]'):
+    if p == 0:
+        return tokens
+    if word_set is None:
+        masked_tokens = [replace(from_=t, to_=mask, p=p) for t in tokens]
+    else:
+        masked_tokens = [replace(from_=t, to_=mask, p=p) if t in word_set else t for t in tokens]
+    return masked_tokens
 
-def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign, mask_offensive):
+def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag, add_cap_sign):
     funcs = [replace_urls] # default
     if not demojize:
         funcs.append(replace_emoji)
