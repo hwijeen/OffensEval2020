@@ -1,5 +1,7 @@
 import logging
 
+from functools import partial
+
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer
@@ -8,39 +10,21 @@ logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
 class TransformersField(Field):
-    """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
-    or RobertaTokenizer.encode"""
+    """ Overrides torchtext.data.Field.process to use Tokenizer.encode as a numericalization function"""
     def __init__(self, tokenizer, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.numericalize_func = tokenizer.encode
+        self.numericalize_func = partial(tokenizer.encode, add_special_tokens=True)
 
-    def numericalize(self, arr, device=None):
-        """To use BertTokenizer.encode"""
-        arr, lengths = arr
-        lengths = torch.tensor(lengths, dtype=self.dtype, device=device)
-        arr = [self.numericalize_func(sent) for sent in arr]
-        var = torch.tensor(arr, dtype=self.dtype, device=device)
-        var = var.contiguous() # sequential
-        return var, lengths
-
-def get_init_eos_toks(tokenizer):
-    """Find appropriate special tokens for different transformers models"""
-    if isinstance(tokenizer, BertTokenizer):
-        init_tok = tokenizer._cls_token # [CLS]
-        eos_tok = tokenizer._sep_token # [SEP]
-    elif isinstance(tokenizer, RobertaTokenizer):
-        init_tok = tokenizer.bos_token # <s>
-        eos_tok = tokenizer.eos_token # </s>
-    elif isinstance(tokenizer, XLMTokenizer):
-        init_tok = tokenizer.bos_token # <s>
-        eos_tok = tokenizer.sep_token # </s>
-    elif isinstance(tokenizer, XLNetTokenizer):
-        init_tok = None
-        # eos_tok = <sep> <cls> # sep_token, cls_token
-        # TODO: hack this
-    else:
-        pass
-    return init_tok, eos_tok
+    def process(self, batch, device=None):
+        """Overrides to use numericalize_func first and then pad.
+        Note that numericalize_func is used instead of numericalize"""
+        ids_list = [self.numericalize_func(ex, device=device) for ex in batch]
+        padded, lengths = self.pad(ids_list)
+        padded = torch.tensor(padded, device=device)
+        lengths = torch.tensor(lengths, device=device)
+        if self.sequential:
+            padded = padded.contiguous()
+        return padded, lengths
 
 
 class Data(object):
@@ -104,15 +88,11 @@ class TransformersData(Data):
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        init_tok, eos_tok = get_init_eos_toks(tokenizer)
         TWEET = TransformersField(tokenizer, include_lengths=True,
                                   use_vocab=False, batch_first=True,
                                   preprocessing=preprocessing,
                                   tokenize=tokenizer.tokenize,
-                                  init_token=init_tok ,
-                                  eos_token=eos_tok,
-                                  pad_token=tokenizer.pad_token,
-                                  unk_token=tokenizer.unk_token)
+                                  pad_token=tokenizer.pad_token_id) # id
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
                   ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None)

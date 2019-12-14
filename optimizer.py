@@ -1,7 +1,6 @@
 import re
 from transformers import AdamW, WarmupLinearSchedule
 
-
 # TODO: training strategy
 def build_optimizer_scheduler(model, lr, eps, warmup, weight_decay,
                               layer_decrease, train_step):

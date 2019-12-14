@@ -52,7 +52,7 @@ class AvgPoolClassifier(CLSClassifier):
         # TODO: clean this hack
         try: # bert, roberta
             x, _ = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
-        except ValueError: # xlm, xlnet
+        except: # xlm, xlnet
             x = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
             x = x[0]
         x = x.masked_fill_(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
