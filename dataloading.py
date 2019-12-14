@@ -4,7 +4,6 @@ from functools import partial
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
-from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
@@ -107,48 +106,3 @@ def build_data(model, *args, **kwargs):
         return TransformersData(*args, **kwargs)
     else:
         return Data(*args, **kwargs)
-
-
-# QUESTION: OOV rate?
-if __name__ == "__main__":
-    from transformers import *
-    from utils import *
-
-    train_path = '../data/olid-training-v1.0.tsv'
-    test_path = '../data/testset-levela.tsv' # same for a, b, c
-    task = 'a'
-    batch_size = 32
-    cuda = True
-    preprocessing = None
-    bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
-
-    # Build data object
-    data = build_data('bert', train_path, test_path, task, preprocessing, bert_tok,
-                      batch_size, device=cuda)
-
-    # See how targets are mapped to index
-    print_label_vocab(data)
-
-    # Generate batches using data_iter
-    for batch in data.train_iter:
-        # A batch has multiple attiributes
-        id = batch.id # list
-        tweet, lengths = batch.tweet # two torch.Tensor
-        label = batch.label # torch.Tensor
-        # See size of each tensors
-        print_shape(batch)
-
-        # Example Usage
-        # logits = model(tweet)
-        # loss = loss_fn(logits, label)
-        # loss.backward()
-
-        # Use tokenizer.convert_ids_to_tokens / decoder to convert word_ids to list / string.
-        for idx in range(len(batch)):
-            sent = tweet[idx].cpu().numpy().tolist()
-            tokens = bert_tok.convert_ids_to_tokens(sent)
-            text = bert_tok.decode(sent)
-            print(f'\nTweet num: {id[idx]}\nText: {text}\nTokens: {tokens}\nLabel: {label[idx]}')
-        break
-
