@@ -2,11 +2,12 @@ import logging
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
+from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
-class TransformerField(Field):
+class TransformersField(Field):
     """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
     or RobertaTokenizer.encode"""
     def __init__(self, tokenizer, *args, **kwargs):
@@ -21,6 +22,25 @@ class TransformerField(Field):
         var = torch.tensor(arr, dtype=self.dtype, device=device)
         var = var.contiguous() # sequential
         return var, lengths
+
+def get_init_eos_toks(tokenizer):
+    """Find appropriate special tokens for different transformers models"""
+    if isinstance(tokenizer, BertTokenizer):
+        init_tok = tokenizer._cls_token # [CLS]
+        eos_tok = tokenizer._sep_token # [SEP]
+    elif isinstance(tokenizer, RobertaTokenizer):
+        init_tok = tokenizer.bos_token # <s>
+        eos_tok = tokenizer.eos_token # </s>
+    elif isinstance(tokenizer, XLMTokenizer):
+        init_tok = tokenizer.bos_token # <s>
+        eos_tok = tokenizer.sep_token # </s>
+    elif isinstance(tokenizer, XLNetTokenizer):
+        init_tok = None
+        # eos_tok = <sep> <cls> # sep_token, cls_token
+        # TODO: hack this
+    else:
+        pass
+    return init_tok, eos_tok
 
 
 class Data(object):
@@ -54,9 +74,6 @@ class Data(object):
         train, val = train_val.split(split_ratio=0.9, stratified=True)
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
                               filter_pred=lambda x: x.label != 'NULL')
-        print(f'Train data size: {len(train)}')
-        print(f'Valid data size: {len(val)}')
-        print(f'Test data size: {len(test)}')
         return train, val, test
 
     def build_vocab(self):
@@ -73,7 +90,7 @@ class Data(object):
                                       device=device)
 
 
-class BertData(Data):
+class TransformersData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
                 batch_size, device):
         self.task = task
@@ -87,14 +104,15 @@ class BertData(Data):
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        TWEET = TransformerField(tokenizer, include_lengths=True,
-                                 use_vocab=False, batch_first=True,
-                                 preprocessing=preprocessing,
-                                 tokenize=tokenizer.tokenize,
-                                 init_token=tokenizer._cls_token,
-                                 eos_token=tokenizer._sep_token,
-                                 pad_token=tokenizer.pad_token,
-                                 unk_token=tokenizer.unk_token)
+        init_tok, eos_tok = get_init_eos_toks(tokenizer)
+        TWEET = TransformersField(tokenizer, include_lengths=True,
+                                  use_vocab=False, batch_first=True,
+                                  preprocessing=preprocessing,
+                                  tokenize=tokenizer.tokenize,
+                                  init_token=init_tok ,
+                                  eos_token=eos_tok,
+                                  pad_token=tokenizer.pad_token,
+                                  unk_token=tokenizer.unk_token)
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
                   ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None)
@@ -105,8 +123,8 @@ class BertData(Data):
         self.train.fields['label'].build_vocab(self.train, self.val)
 
 def build_data(model, *args, **kwargs):
-    if 'bert' in model:
-        return BertData(*args, **kwargs)
+    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
+        return TransformersData(*args, **kwargs)
     else:
         return Data(*args, **kwargs)
 

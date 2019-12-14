@@ -7,7 +7,7 @@ from collections import Counter
 from functools import reduce, partial
 
 import emoji
-from transformers import BertTokenizer, RobertaTokenizer
+from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer, XLNetTokenizer
 
 resources_dir = '../resources/'
 
@@ -87,17 +87,26 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(add_capital_sign)
     return compose(*funcs)
 
-
+# TODO: consider using Config
 # TODO: Fix hard code of model names(also in build_model)
 def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
                     preprocess):
-    assert model in {'bert', 'roberta'}
-    if model in {'bert', 'roberta'}:
+    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
         if model == 'bert':
             tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        else:
+            tokenizer.add_tokens(['@USER'])
+        elif model == 'roberta':
             tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-        tokenizer.add_tokens(['@USER'])
+            tokenizer.add_tokens(['@USER'])
+        elif model == 'xlm':
+            tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-en-2048')
+            tokenizer.add_tokens(['@USER'])
+        elif model == 'xlnet':
+            tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+            tokenizer.add_tokens(['@USER'])
+        else:
+            pass
+
         if emoji_min_freq > 0:
             new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
             tokenizer.add_tokens(new_tokens)
