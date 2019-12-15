@@ -390,9 +390,9 @@ def main():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--train_data_file", default='../resources/tweet_corpus.txt', type=str, required=True,
+    parser.add_argument("--train_data_file", default='../resources/tweet_corpus.txt', type=str,
                         help="The input training data file (a text file).")
-    parser.add_argument("--output_dir", default='../resources/finetuned', type=str, required=True,
+    parser.add_argument("--output_dir", default='../resources/finetuned', type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
