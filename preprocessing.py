@@ -40,13 +40,6 @@ def _has_cap(token):
 def _all_cap(token):
     return token.lower() != token and token.upper() == token
 
-def replace(from_, to_, p):
-    # replace a word <from_> with probability p to token <to_>
-    if np.random.uniform(0, 1) < p:
-        return to_
-    else:
-        return from_
-
 def add_capital_sign(text):
     exceptions = ['@USER', 'URL']
     tokens = text.split()
@@ -79,15 +72,6 @@ def stopwords():
 
 def replace_urls(sent):
     return sent.replace('URL', 'http')
-
-def replace_random(tokens, p, word_set=None, mask='[UNK]'):
-    if p == 0:
-        return tokens
-    if word_set is None:
-        masked_tokens = [replace(from_=t, to_=mask, p=p) for t in tokens]
-    else:
-        masked_tokens = [replace(from_=t, to_=mask, p=p) if t in word_set else t for t in tokens]
-    return masked_tokens
 
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag, add_cap_sign):
     funcs = [replace_urls] # default
@@ -129,13 +113,6 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
         # TODO: when not using bert
         pass
     return tokenizer
-
-
-def load_offensive_list():
-    with open(resources_dir + 'offensive_words.txt', 'r') as f:
-        words = [w.rstrip() for w in f.readlines()]
-    return set(words)
-
 
 def build_freq_dict(train_corpus, which):
     freq_dict = count(train_corpus, which)

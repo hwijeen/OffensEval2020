@@ -1,12 +1,18 @@
 import logging
 from functools import partial
-
+import numpy as np
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator, Batch
-from preprocessing import load_offensive_list, replace_random
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
+
+
+def load_offensive_list():
+    resources_dir = '../resources/'
+    with open(resources_dir + 'offensive_words.txt', 'r') as f:
+        words = [w.rstrip() for w in f.readlines()]
+    return set(words)
 
 
 class MaskedDataIterator(BucketIterator):
@@ -16,7 +22,23 @@ class MaskedDataIterator(BucketIterator):
         super().__init__(dataset, batch_size, **kwargs)
         self.mask = max(mask_offensive, mask_random) if self.train else 0.0
         self.offensive_list = load_offensive_list() if mask_offensive > 0 else None
-        self.masking_ft = partial(replace_random, word_set=self.offensive_list, p=self.mask)
+        self.masking_ft = partial(self.replace_random, word_set=self.offensive_list, p=self.mask)
+
+    def replace(self, from_, to_, p):
+        # replace a word <from_> with probability p to token <to_>
+        if np.random.uniform(0, 1) < p:
+            return to_
+        else:
+            return from_
+
+    def replace_random(self, tokens, p, word_set=None, mask='[UNK]'):
+        if p == 0:
+            return tokens
+        if word_set is None:
+            masked_tokens = [self.replace(from_=t, to_=mask, p=p) for t in tokens]
+        else:
+            masked_tokens = [self.replace(from_=t, to_=mask, p=p) if t in word_set else t for t in tokens]
+        return masked_tokens
 
     def __iter__(self):
         while True:
