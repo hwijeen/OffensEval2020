@@ -144,7 +144,7 @@ class TransformersData(Data):
         self.device = device
         self.mask_offensive = mask_offensive
         self.mask_random = mask_random
-
+        self.mask_gradual = mask_gradual
         self.fields = self.build_field(task, tokenizer, preprocessing)
         self.train, self.val, self.test = self.build_dataset(
             train_path, test_path)

@@ -101,7 +101,8 @@ if __name__ == "__main__":
                            batch_size=args.batch_size,
                            device=args.device,
                            mask_offensive=args.mask_offensive,
-                           mask_random=args.mask_random)
+                           mask_random=args.mask_random,
+                           mask_gradual=args.mask_gradual)
     model = build_model(task=args.task,
                         model=args.model,
                         pooling=args.pooling,
