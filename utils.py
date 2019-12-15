@@ -32,7 +32,7 @@ def print_shape(batch):
             size = tensor.size()
         print(f'batch.{name} is a {type(tensor)} of size {size}')
 
-def sequence_mask(lengths, pad=0):
+def sequence_mask(lengths, pad=0, dtype=torch.bool):
     # make a mask matrix corresponding to given length
     # from https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/ops/array_ops.py
     row_vector = torch.arange(0, max(lengths), device=lengths.device) # (L,)
@@ -41,6 +41,8 @@ def sequence_mask(lengths, pad=0):
         result = row_vector >= matrix # 1 for pad tokens
     else:
         result = row_vector < matrix # 1 for real tokens
+    if dtype == torch.float:
+        result = result.float()
     return result # (B, L)
 
 def calc_acc(pred, gold):
@@ -71,7 +73,7 @@ def calc_recall(pred, gold, labels=None, pos_label=1, average='binary'):
     For our task, set average='macro'
     To get score for each category, set labels=[0,1,2] or [0,1] depending on the subtask.
     """
-    return precision_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
+    return recall_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
 
 def conf_matrix(pred, gold, labels=None):
     """

@@ -38,7 +38,7 @@ def parse_args():
     preprocess.add_argument('--mask_random', type=float, default=0.0)
 
     model = parser.add_argument_group('Model options')
-    model.add_argument('--model', choices=['bert', 'roberta'], default='bert')
+    model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
     model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)

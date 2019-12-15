@@ -64,21 +64,22 @@ class MaskedDataIterator(BucketIterator):
                 return
 
 
-class TransformerField(Field):
-    """ Overrides torchtext.data.Field.numericalize to use BertTokenizer.encode
-    or RobertaTokenizer.encode"""
+class TransformersField(Field):
+    """ Overrides torchtext.data.Field.process to use Tokenizer.encode as a numericalization function"""
     def __init__(self, tokenizer, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.numericalize_func = tokenizer.encode
+        self.numericalize_func = partial(tokenizer.encode, add_special_tokens=True)
 
-    def numericalize(self, arr, device=None):
-        """To use BertTokenizer.encode"""
-        arr, lengths = arr
-        lengths = torch.tensor(lengths, dtype=self.dtype, device=device)
-        arr = [self.numericalize_func(sent) for sent in arr]
-        var = torch.tensor(arr, dtype=self.dtype, device=device)
-        var = var.contiguous() # sequential
-        return var, lengths
+    def process(self, batch, device=None):
+        """Overrides to use numericalize_func first and then pad.
+        Note that numericalize_func is used instead of numericalize"""
+        ids_list = [self.numericalize_func(ex, device=device) for ex in batch]
+        padded, lengths = self.pad(ids_list)
+        padded = torch.tensor(padded, device=device)
+        lengths = torch.tensor(lengths, device=device)
+        if self.sequential:
+            padded = padded.contiguous()
+        return padded, lengths
 
 
 class Data(object):
@@ -114,9 +115,6 @@ class Data(object):
         train, val = train_val.split(split_ratio=0.9, stratified=True)
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
                               filter_pred=lambda x: x.label != 'NULL')
-        print(f'Train data size: {len(train)}')
-        print(f'Valid data size: {len(val)}')
-        print(f'Test data size: {len(test)}')
         return train, val, test
 
     def build_vocab(self):
@@ -134,7 +132,7 @@ class Data(object):
                                          mask_random=self.mask_random)
 
 
-class BertData(Data):
+class TransformersData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
                  batch_size, device, mask_offensive, mask_random):
         self.task = task
@@ -150,14 +148,11 @@ class BertData(Data):
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        TWEET = TransformerField(tokenizer, include_lengths=True,
-                                 use_vocab=False, batch_first=True,
-                                 preprocessing=preprocessing,
-                                 tokenize=tokenizer.tokenize,
-                                 init_token=tokenizer._cls_token,
-                                 eos_token=tokenizer._sep_token,
-                                 pad_token=tokenizer.pad_token,
-                                 unk_token=tokenizer.unk_token)
+        TWEET = TransformersField(tokenizer, include_lengths=True,
+                                  use_vocab=False, batch_first=True,
+                                  preprocessing=preprocessing,
+                                  tokenize=tokenizer.tokenize,
+                                  pad_token=tokenizer.pad_token_id) # id
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
                   ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None)
@@ -168,52 +163,7 @@ class BertData(Data):
         self.train.fields['label'].build_vocab(self.train, self.val)
 
 def build_data(model, *args, **kwargs):
-    if 'bert' in model:
-        return BertData(*args, **kwargs)
+    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
+        return TransformersData(*args, **kwargs)
     else:
         return Data(*args, **kwargs)
-
-
-# QUESTION: OOV rate?
-if __name__ == "__main__":
-    from transformers import *
-    from utils import *
-
-    train_path = '../data/olid-training-v1.0.tsv'
-    test_path = '../data/testset-levela.tsv' # same for a, b, c
-    task = 'a'
-    batch_size = 32
-    cuda = True
-    preprocessing = None
-    bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertModel.from_pretrained('bert-base-uncased')
-
-    # Build data object
-    data = build_data('bert', train_path, test_path, task, preprocessing, bert_tok,
-                      batch_size, device=cuda)
-
-    # See how targets are mapped to index
-    print_label_vocab(data)
-
-    # Generate batches using data_iter
-    for batch in data.train_iter:
-        # A batch has multiple attiributes
-        id = batch.id # list
-        tweet, lengths = batch.tweet # two torch.Tensor
-        label = batch.label # torch.Tensor
-        # See size of each tensors
-        print_shape(batch)
-
-        # Example Usage
-        # logits = model(tweet)
-        # loss = loss_fn(logits, label)
-        # loss.backward()
-
-        # Use tokenizer.convert_ids_to_tokens / decoder to convert word_ids to list / string.
-        for idx in range(len(batch)):
-            sent = tweet[idx].cpu().numpy().tolist()
-            tokens = bert_tok.convert_ids_to_tokens(sent)
-            text = bert_tok.decode(sent)
-            print(f'\nTweet num: {id[idx]}\nText: {text}\nTokens: {tokens}\nLabel: {label[idx]}')
-        break
-
