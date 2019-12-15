@@ -60,7 +60,7 @@ class MaskedDataIterator(BucketIterator):
                         minibatch.sort(key=self.sort_key, reverse=True)
 
                 for example in minibatch:
-                    p = min(self.mask, self.mask_gradual * (self._iterations / 10)) if self.mask_gradual > 0 else self.mask
+                    p = min(self.mask, self.mask_gradual * (self.iterations / 10)) if self.mask_gradual > 0 else self.mask
                     example.tweet = self.masking_ft(example.tweet, p=p)
 
                 yield Batch(minibatch, self.dataset, self.device)
