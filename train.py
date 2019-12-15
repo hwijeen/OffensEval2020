@@ -36,6 +36,7 @@ def parse_args():
     preprocess.add_argument('--tokenize', default='bert')
     preprocess.add_argument('--mask_offensive', type=float, default=0.0)
     preprocess.add_argument('--mask_random', type=float, default=0.0)
+    preprocess.add_argument('--mask_gradual', type=float, default=0.0)
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')

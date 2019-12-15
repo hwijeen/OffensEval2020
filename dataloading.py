@@ -19,10 +19,11 @@ class MaskedDataIterator(BucketIterator):
     def __init__(self, dataset, batch_size, **kwargs):
         mask_offensive = kwargs.pop('mask_offensive')
         mask_random = kwargs.pop('mask_random')
+        self.mask_gradual = kwargs.pop('mask_gradual')
         super().__init__(dataset, batch_size, **kwargs)
         self.mask = max(mask_offensive, mask_random) if self.train else 0.0
         self.offensive_list = load_offensive_list() if mask_offensive > 0 else None
-        self.masking_ft = partial(self.replace_random, word_set=self.offensive_list, p=self.mask)
+        self.masking_ft = partial(self.replace_random, word_set=self.offensive_list)
 
     def replace(self, from_, to_, p):
         # replace a word <from_> with probability p to token <to_>
@@ -45,8 +46,6 @@ class MaskedDataIterator(BucketIterator):
             self.init_epoch()
             for idx, minibatch in enumerate(self.batches):
                 # fast-forward if loaded from state
-                for example in minibatch:
-                    example.tweet = self.masking_ft(example.tweet)
                 if self._iterations_this_epoch > idx:
                     continue
                 self.iterations += 1
@@ -59,6 +58,11 @@ class MaskedDataIterator(BucketIterator):
                         minibatch.reverse()
                     else:
                         minibatch.sort(key=self.sort_key, reverse=True)
+
+                for example in minibatch:
+                    p = min(self.mask, self.mask_gradual * (self._iterations / 10)) if self.mask_gradual > 0 else self.mask
+                    example.tweet = self.masking_ft(example.tweet, p=p)
+
                 yield Batch(minibatch, self.dataset, self.device)
             if not self.repeat:
                 return
@@ -85,11 +89,12 @@ class TransformersField(Field):
 class Data(object):
     """ Holds Datasets, Iterators. """
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device, mask_offensive, mask_random):
+                 batch_size, device, mask_offensive, mask_random, mask_gradual):
         self.task = task
         self.device = device
         self.mask_offensive = mask_offensive
         self.mask_random = mask_random
+        self.mask_gradual = mask_gradual
         self.fields = self.build_field(task, tokenizer, preprocessing)
         self.train, self.val, self.test = self.build_dataset(
             train_path, test_path)
@@ -129,16 +134,17 @@ class Data(object):
                                          sort_key=lambda x: len(x.tweet),
                                          sort_within_batch=True, repeat=True,
                                          device=device, mask_offensive=self.mask_offensive,
-                                         mask_random=self.mask_random)
+                                         mask_random=self.mask_random, mask_gradual=self.mask_gradual)
 
 
 class TransformersData(Data):
     def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device, mask_offensive, mask_random):
+                 batch_size, device, mask_offensive, mask_random, mask_gradual):
         self.task = task
         self.device = device
         self.mask_offensive = mask_offensive
         self.mask_random = mask_random
+
         self.fields = self.build_field(task, tokenizer, preprocessing)
         self.train, self.val, self.test = self.build_dataset(
             train_path, test_path)
