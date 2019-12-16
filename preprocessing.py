@@ -59,16 +59,14 @@ def limit_punctuations(sent, keep_num):
         sent = _limit_pattern(sent, p, keep_num)
     return sent
 
-# TODO
 def replace_urls(sent):
     """Replace actual URL to `http`"""
     sent = re.sub('http://[\S]+', 'http', sent)
     return sent.replace('URL', 'http')
 
-# TODO
 def replace_users(sent):
     """Replace actual @ID to @USER"""
-    return re.sub('@[\S]+', '', sent)
+    return re.sub('@[\S]+', '@USER', sent)
 
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
                      add_cap_sign, replace_user=False):
