@@ -37,6 +37,7 @@ def parse_args():
     preprocess.add_argument('--mask_offensive', type=float, default=0.0)
     preprocess.add_argument('--mask_random', type=float, default=0.0)
     preprocess.add_argument('--mask_gradual', type=float, default=0.0)
+    preprocess.add_argument('--mask_increase', action='store_true')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
@@ -102,7 +103,8 @@ if __name__ == "__main__":
                            device=args.device,
                            mask_offensive=args.mask_offensive,
                            mask_random=args.mask_random,
-                           mask_gradual=args.mask_gradual)
+                           mask_gradual=args.mask_gradual,
+                           mask_increase=args.mask_increase)
     model = build_model(task=args.task,
                         model=args.model,
                         pooling=args.pooling,
