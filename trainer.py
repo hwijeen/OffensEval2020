@@ -94,6 +94,7 @@ class Trainer:
             self.optimizer.step()
             self.scheduler.step()
 
+            # TODO: clean here
             if step % self.record_every == 0:
                 val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc, val_f1 = self.evaluate(self.val_iter)
@@ -103,9 +104,11 @@ class Trainer:
                     test_acc, test_f1 = self.evaluate(self.test_iter)
                 self.record(step, loss, val_loss, val_acc, val_f1,
                             train_acc, train_f1, test_acc, test_f1)
+
                 if self.verbose:
                     self.report(step, loss, val_loss, val_acc, val_f1,
                                 train_acc, train_f1, test_acc, test_f1)
+
                 self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
                     print(f'Early stopping at {step} step.')
@@ -113,19 +116,20 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                if self.test_iter is not None:
-                    test_acc, test_f1 = self.evaluate(self.test_iter)
-                else:
-                    dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-                print('*'*60)
-                print(f'Best model found at {self.early_stopper.best_step} step,')
-                if self.test_iter is not None:
-                    print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
-                else:
-                    print(f'Dev acc:{dev_acc}, Test_f1:{dev_f1}')
-                print('*'*60)
-                self.writer.close()
+                self.summarize_training()
                 return self.model
+
+    def summarize_training(self):
+        print('*' * 60)
+        print(f'Best model found at {self.early_stopper.best_step} step,')
+        if self.test_iter is not None:
+            test_acc, test_f1 = self.evaluate(self.test_iter)
+            print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
+        else:
+            dev_acc, dev_f1 = self.evaluate(self.dev_iter)
+            print(f'Dev acc:{dev_acc}, Test_f1:{dev_f1}')
+        print('*' * 60)
+        self.writer.close()
 
     def record(self, step, loss, val_loss, val_acc, val_f1,
                train_acc=None, train_f1=None, test_acc=None, test_f1=None):
@@ -172,7 +176,8 @@ class Trainer:
         data_iter.repeat = True
         return acc, f1
 
-# TODO: make verbose as an option
+
+# TODO: make verbose an option
 def build_trainer(model, data, optimizer, scheduler, max_grad_norm,
                   record_every, patience, exp_name):
     trainer = Trainer(model, data.train_iter, data.val_iter, optimizer,
