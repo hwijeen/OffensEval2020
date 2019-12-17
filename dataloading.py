@@ -1,8 +1,12 @@
 import logging
 from functools import partial
+import random
 import numpy as np
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator, Batch
+
+random.seed(0)
+state = random.getstate()
 
 logger = logging.getLogger(__name__)
 task_to_col_idx = {'a':2, 'b':3, 'c':4}
@@ -128,7 +132,7 @@ class Data(object):
         train_val = TabularDataset(train_path, 'tsv', self.fields,
                                    skip_header=True,
                                    filter_pred=lambda x: x.label != 'NULL')
-        train, val = train_val.split(split_ratio=0.9, stratified=True)
+        train, val = train_val.split(split_ratio=0.9, stratified=True, random_state=state)
         test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
                               filter_pred=lambda x: x.label != 'NULL')
         return train, val, test
