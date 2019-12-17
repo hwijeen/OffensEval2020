@@ -52,11 +52,10 @@ class EarlyStopping:
         self.prev_best_score = curr_score
 
 
-
 class Trainer:
-    def __init__(self, model, train_iter, val_iter, test_iter, optimizer,
-                 scheduler, max_grad_norm, patience, record_every=100,
-                 exp_name=None, verbose=True):
+    def __init__(self, model, train_iter, val_iter, optimizer, scheduler,
+                 max_grad_norm, patience, exp_name, record_every=100,
+                 verbose=True, test_iter=None):
         self.model = model
         self.train_iter = train_iter
         self.val_iter = val_iter
@@ -99,12 +98,14 @@ class Trainer:
                 val_loss = self.compute_entire_loss(self.val_iter)
                 val_acc, val_f1 = self.evaluate(self.val_iter)
                 train_acc, train_f1 = self.evaluate(self.train_iter) # optional
-                test_acc, test_f1 = self.evaluate(self.test_iter)
+                test_acc, test_f1 = None, None
+                if self.test_iter is not None:
+                    test_acc, test_f1 = self.evaluate(self.test_iter)
                 self.record(step, loss, val_loss, val_acc, val_f1,
                             train_acc, train_f1, test_acc, test_f1)
                 if self.verbose:
                     self.report(step, loss, val_loss, val_acc, val_f1,
-                                train_acc, train_f1)
+                                train_acc, train_f1, test_acc, test_f1)
                 self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
                     print(f'Early stopping at {step} step.')
@@ -112,17 +113,23 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                test_acc, test_f1 = self.evaluate(self.test_iter)
+                if self.test_iter is not None:
+                    test_acc, test_f1 = self.evaluate(self.test_iter)
+                else:
+                    dev_acc, dev_f1 = self.evaluate(self.dev_iter)
                 print('*'*60)
-                print(f'Train finished at {self.early_stopper.best_step} step,')
-                print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
+                print(f'Best model found at {self.early_stopper.best_step} step,')
+                if self.test_iter is not None:
+                    print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
+                else:
+                    print(f'Dev acc:{dev_acc}, Test_f1:{dev_f1}')
                 print('*'*60)
                 self.writer.close()
                 return self.model
 
     def record(self, step, loss, val_loss, val_acc, val_f1,
                train_acc=None, train_f1=None, test_acc=None, test_f1=None):
-        self.writer.add_scalar('Loss/train', loss.item(), step)
+        self.writer.add_scalar('Loss/train', loss.item(), step) # batch loss
         self.writer.add_scalar('Loss/val', val_loss.item(), step)
         self.writer.add_scalar('Acc/val', val_acc, step)
         self.writer.add_scalar('F1/val', val_f1, step)
@@ -136,16 +143,20 @@ class Trainer:
             self.writer.add_scalar('F1/test', test_f1, step)
 
     def report(self, step, loss, val_loss, val_acc, val_f1, train_acc=None,
-               train_f1=None):
+               train_f1=None, test_acc=None, test_f1=None):
         print(f'At step: {step}')
         print(f'\tTrain loss: {loss.item():.6f}')
         print(f'\tVal loss: {val_loss.item():.6f}')
         print(f'\tVal acc: {val_acc:.2f}')
         print(f'\tVal F1: {val_f1:.2f}')
         if train_acc is not None:
-            print(f'\tTrain acc: {train_acc:.2f} - for debug!')
+            print(f'\tTrain acc: {train_acc:.2f}')
         if train_f1 is not None:
-            print(f'\tTrain f1: {train_f1:.2f} - for debug!')
+            print(f'\tTrain f1: {train_f1:.2f}')
+        if test_acc is not None:
+            print(f'\tTest acc: {test_acc:.2f}')
+        if test_f1 is not None:
+            print(f'\tTest f1: {test_f1:.2f}')
 
     def evaluate(self, data_iter):
         self.model.eval()
@@ -161,11 +172,10 @@ class Trainer:
         data_iter.repeat = True
         return acc, f1
 
-# TODO: is this necessary?
+# TODO: make verbose as an option
 def build_trainer(model, data, optimizer, scheduler, max_grad_norm,
                   record_every, patience, exp_name):
-    exp_name = exp_name
-    trainer = Trainer(model, data.train_iter, data.val_iter, data.test_iter,
-                      optimizer, scheduler, max_grad_norm, patience,
-                      record_every, exp_name)
+    trainer = Trainer(model, data.train_iter, data.val_iter, optimizer,
+                      scheduler, max_grad_norm, patience, exp_name,
+                      record_every, verbose=True, test_iter=data.test_iter)
     return trainer
