@@ -2,6 +2,7 @@ import argparse
 import logging
 
 import torch
+from setproctitle import setproctitle
 
 from dataloading import build_data
 from model import build_model
@@ -77,6 +78,7 @@ def generate_exp_name(args):
 
 # TODO: save args for reproducible exp
 if __name__ == "__main__":
+    setproctitle("Monkey.")
     args = parse_args()
     exp_name = generate_exp_name(args)
     preprocess = build_preprocess(demojize=args.demojize,

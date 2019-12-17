@@ -86,6 +86,7 @@ class Trainer:
 
     def train(self, train_step):
         for step, batch in enumerate(self.train_iter, 1):
+            input()
             self.model.train()
             loss = self.compute_loss(batch)
 

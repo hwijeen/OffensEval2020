@@ -49,6 +49,7 @@ from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForMaskedLM, RobertaTokenizer,
                           DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer,
                           CamembertConfig, CamembertForMaskedLM, CamembertTokenizer)
+from preprocessing import build_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -451,9 +452,9 @@ def main():
 
     parser.add_argument('--logging_steps', type=int, default=50,
                         help="Log every X updates steps.")
-    parser.add_argument('--save_steps', type=int, default=50,
+    parser.add_argument('--save_steps', type=int, default=100,
                         help="Save checkpoint every X updates steps.")
-    parser.add_argument('--save_total_limit', type=int, default=None,
+    parser.add_argument('--save_total_limit', type=int, default=10,
                         help='Limit the total amount of checkpoints, delete the older checkpoints in the output_dir, does not delete by default')
     parser.add_argument("--eval_all_checkpoints", action='store_true',
                         help="Evaluate all checkpoints starting with the same prefix as model_name_or_path ending and ending with step number")
@@ -475,7 +476,17 @@ def main():
                         help="For distributed training: local_rank")
     parser.add_argument('--server_ip', type=str, default='', help="For distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="For distant debugging.")
+
+    # To be used when constructing a tokenizer
+    parser.add_argument('--emoji_min_freq', type=int, default=10)
+    parser.add_argument('--hashtag_min_freq', type=int, default=10)
+    parser.add_argument('--add_cap_sign', action='store_true')
+    parser.add_argument('--debug', action='store_true')
+
     args = parser.parse_args()
+    if args.debug:
+        args.train_data_file = '../resources/tweet_corpus_debug.txt'
+        print("Debugging mode!")
 
     if args.model_type in ["bert", "roberta", "distilbert", "camembert"] and not args.mlm:
         raise ValueError("BERT and RoBERTa do not have LM heads but masked LM heads. They must be run using the --mlm "
@@ -530,6 +541,8 @@ def main():
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
                                                 do_lower_case=args.do_lower_case,
                                                 cache_dir=args.cache_dir if args.cache_dir else None)
+    #tokenizer = build_tokenizer(args.model_type, args.emoji_min_freq, args.hashtag_min_freq,
+    #                            args.add_cap_sign, preprocess=None)
     if args.block_size <= 0:
         args.block_size = tokenizer.max_len_single_sentence  # Our input block size will be the max possible for the model
     args.block_size = min(args.block_size, tokenizer.max_len_single_sentence)
