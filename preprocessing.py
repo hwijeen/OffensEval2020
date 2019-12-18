@@ -19,6 +19,15 @@ def replace_emoji(sent):
     """ Replace emoticon with predefined :text:. """
     return emoji.demojize(sent)
 
+def textify_emojis(sent):
+    tokens = [textify_emojis_token(token) for token in sent.split()]
+    return ' '.join(tokens)
+
+def textify_emojis_token(token):
+    token = token.strip(':')
+    token = re.sub('_', ' ', token)
+    return token
+
 # TODO: need a space after the last `@USER`
 # def del_mention(sent, keep_num):
 #     """Consecutive `@USER` up to kee_num times"""
@@ -73,10 +82,12 @@ def replace_urls(sent):
     return sent.replace('URL', 'http')
 
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign):
+                     add_cap_sign, textify_emoji):
     funcs = [replace_urls] # default
     if not demojize:
         funcs.append(replace_emoji)
+    if textify_emoji:
+        funcs.append(textify_emojis)
     if mention_limit > 0:
         funcs.append(partial(limit_mention, keep_num=mention_limit))
     if punc_limit > 0:
