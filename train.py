@@ -2,6 +2,7 @@ import argparse
 import logging
 
 import torch
+from setproctitle import setproctitle
 
 from dataloading import build_data
 from model import build_model
@@ -43,6 +44,7 @@ def parse_args():
     model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
+    model.add_argument('--layer', type=int, default=0)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
@@ -82,6 +84,7 @@ def generate_exp_name(args):
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
+    setproctitle(exp_name)
     preprocess = build_preprocess(demojize=args.demojize,
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
@@ -103,6 +106,7 @@ if __name__ == "__main__":
     model = build_model(task=args.task,
                         model=args.model,
                         pooling=args.pooling,
+                        layer=args.layer,
                         new_num_tokens=len(tokenizer),
                         hidden_dropout_prob=args.hidden_dropout_prob,
                         attention_probs_dropout_prob=args.attention_probs_dropout_prob,

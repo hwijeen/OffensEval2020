@@ -34,7 +34,8 @@ class CLSClassifier(nn.Module):
 
 
 class AvgPoolClassifier(CLSClassifier):
-    def __init__(self, transformer_model, n_class):
+    def __init__(self, transformer_model, n_class, layer):
+        self.layer = layer
         super().__init__(transformer_model, n_class)
 
     def forward(self, x, length):
@@ -51,7 +52,12 @@ class AvgPoolClassifier(CLSClassifier):
         x_mask = sequence_mask(length, pad=0, dtype=torch.float)  # (batch_size, max_length)
         # TODO: clean this hack
         try: # bert, roberta
-            x, _ = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
+            if self.layer > 0:
+                _, _, hidden_states = self.model(x, attention_mask=x_mask)
+                x = hidden_states[self.layer]
+            else:
+                x, _ = self.model(x, attention_mask=x_mask)  # (batch_size, seq_length, hidden_size)
+
         except: # xlm, xlnet
             x = self.model(x, attention_mask=x_mask)                     # (batch_size, seq_length, hidden_size)
             x = x[0]
@@ -65,14 +71,19 @@ class AvgPoolClassifier(CLSClassifier):
 
 
 # TODO: fix hardcoding of model names(need to be compatiable with preprocessing)
-def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
+def build_model(task, model, pooling, layer, new_num_tokens, device, **kwargs):
+    output_hidden_states = layer > 0
     n_class = task_to_n_class[task]
     if model == 'bert':
         #base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
-        base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
+        base_model = BertModel.from_pretrained('bert-base-uncased',
+                                               output_hidden_states=output_hidden_states,
+                                               **kwargs)
         base_model.resize_token_embeddings(new_num_tokens)
     elif model == 'roberta':
-        base_model = RobertaModel.from_pretrained('roberta-base', **kwargs)
+        base_model = RobertaModel.from_pretrained('roberta-base',
+                                                  output_hidden_states=output_hidden_states,
+                                                  **kwargs)
         base_model.resize_token_embeddings(new_num_tokens)
     elif model =='xlm':
         base_model = XLMModel.from_pretrained('xlm-mlm-en-2048')
@@ -86,7 +97,7 @@ def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
     if pooling == 'cls':
         model = CLSClassifier(base_model, n_class)
     elif pooling == 'avg':
-        model = AvgPoolClassifier(base_model, n_class)
+        model = AvgPoolClassifier(base_model, n_class, layer)
     else:
         pass
     return model.to(device)
