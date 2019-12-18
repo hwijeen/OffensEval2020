@@ -1,8 +1,8 @@
 import argparse
 import logging
+from setproctitle import setproctitle
 
 import torch
-from setproctitle import setproctitle
 
 from dataloading import build_data
 from model import build_model
@@ -11,13 +11,16 @@ from utils import write_result_to_file
 from optimizer import build_optimizer_scheduler
 from preprocessing import build_preprocess, build_tokenizer
 
+# torch.manual_seed(0)
+# torch.backends.cudnn.deterministic = True
+# torch.backends.cudnn.benchmark = False
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # TODO: inference.py with test data
-# TODO: data loading when test data has no label
+# TODO: defaults to None when no testdata available
 def parse_args():
     parser = argparse.ArgumentParser()
     data = parser.add_argument_group('Data')
@@ -46,7 +49,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
-    optimizer_scheduler.add_argument('--warmup', type=int, default=100)
+    optimizer_scheduler.add_argument('--warmup', type=int, default=1000)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
@@ -78,9 +81,9 @@ def generate_exp_name(args):
 
 # TODO: save args for reproducible exp
 if __name__ == "__main__":
-    setproctitle("Monkey.")
     args = parse_args()
     exp_name = generate_exp_name(args)
+    setproctitle(exp_name)
     preprocess = build_preprocess(demojize=args.demojize,
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
@@ -93,12 +96,12 @@ if __name__ == "__main__":
                                 preprocess=preprocess)
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,
-                           test_path=args.test_path,
                            task=args.task,
                            preprocessing=None,
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
-                           device=args.device)
+                           device=args.device,
+                           test_path=args.test_path)
     model = build_model(task=args.task,
                         model=args.model,
                         pooling=args.pooling,
@@ -130,4 +133,3 @@ if __name__ == "__main__":
     file_name = f'runs/{exp_name}/prediction.tsv'
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
                          file_name, exp_name)
-

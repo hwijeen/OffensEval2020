@@ -21,6 +21,7 @@ using a masked language modeling (MLM) loss.
 
 from __future__ import absolute_import, division, print_function
 
+
 import argparse
 import glob
 import logging
@@ -34,6 +35,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
+from setproctitle import setproctitle
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -388,6 +390,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
 
 def main():
+    setproctitle("LM fine-tune")
     parser = argparse.ArgumentParser()
 
     ## Required parameters
