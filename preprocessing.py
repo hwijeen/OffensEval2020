@@ -16,6 +16,18 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
+def textify_emojis(sent):
+    tokens = [textify_emojis_token(token) for token in sent.split()]
+    return ' '.join(tokens)
+
+def textify_emojis_token(token):
+    token = token.strip(':')
+    token = re.sub('_', ' ', token)
+    return token
+
+def limit_mention(sent, keep_num):
+    return _limit_pattern(sent, '@USER', keep_num)
+
 def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
@@ -65,10 +77,12 @@ def segment_hashtags(sent):
     #return re.sub('#[\w]+', lambda match: '#' + ' '.join(segment(match.group())), sent) # with '#' in front
 
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign, segment_hashtag):
+                     add_cap_sign, segment_hashtag, textify_emoji):
     funcs = [replace_urls] # default
     if demojize:
         funcs.append(replace_emojis)
+    if textify_emoji:
+        funcs.append(textify_emojis)
     if mention_limit > 0:
         funcs.append(partial(limit_mentions, keep_num=mention_limit))
     if punc_limit > 0:

@@ -31,14 +31,15 @@ def parse_args():
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--punctuation') # not implemented
     preprocess.add_argument('--demojize', action='store_true')
-    preprocess.add_argument('--emoji_min_freq', type=int, default=10)
+    preprocess.add_argument('--emoji_min_freq', type=int, default=0)
     preprocess.add_argument('--lower_hashtag', action='store_true')
-    preprocess.add_argument('--hashtag_min_freq', type=int, default=10)
+    preprocess.add_argument('--hashtag_min_freq', type=int, default=0)
     preprocess.add_argument('--add_cap_sign', action='store_true')
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
     preprocess.add_argument('--tokenize', default='bert')
     preprocess.add_argument('--segment_hashtag', action='store_true')
+    preprocess.add_argument('--textify_emoji', action='store_true')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
@@ -90,7 +91,8 @@ if __name__ == "__main__":
                                   punc_limit=args.punc_limit,
                                   lower_hashtag=args.lower_hashtag,
                                   add_cap_sign=args.add_cap_sign,
-                                  segment_hashtag=args.segment_hashtag)
+                                  segment_hashtag=args.segment_hashtag,
+                                  textify_emoji=args.textify_emoji)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,
