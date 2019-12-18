@@ -15,22 +15,10 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
-def replace_emoji(sent):
-    """ Replace emoticon with predefined :text:. """
-    return emoji.demojize(sent)
-
-# TODO: need a space after the last `@USER`
-# def del_mention(sent, keep_num):
-#     """Consecutive `@USER` up to kee_num times"""
-#     return re.sub('((@USER)[\s]*){' + str(keep_num+1) + ',}', lambda match: '@USER '*keep_num, sent)
-
-def limit_mention(sent, keep_num):
-    return _limit_pattern(sent, '@USER', keep_num)
-
-def lower_hashtag_(sent):
+def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-def delete_hashtag(sent):
+def delete_hashtags(sent): # not used
     return re.sub('#[\w]+', '', sent)
 
 def _has_cap(token):
@@ -39,7 +27,7 @@ def _has_cap(token):
 def _all_cap(token):
     return token.lower() != token and token.upper() == token
 
-def add_capital_sign(text):
+def add_capital_signs(text):
     exceptions = ['@USER', 'URL']
     tokens = text.split()
     tokens = ['<has_cap> ' + t if _has_cap(t) and t not in exceptions else t for t in tokens]
@@ -55,19 +43,18 @@ def _limit_pattern(sent, pattern, keep_num):
     pattern_regex = re_pattern + '{' + str(keep_num+1) + ',}'
     return re.sub(pattern_regex, lambda match: pattern * keep_num, sent)
 
-def limit_punctuation(sent, keep_num):
+def limit_punctuations(sent, keep_num):
     puncs = ['!', '?', '.']
     for p in puncs:
         sent = _limit_pattern(sent, p, keep_num)
     return sent
 
-# TODO
-def numbers():
-    pass
+def limit_mentions(sent, keep_num):
+    return _limit_pattern(sent, '@USER', keep_num)
 
-# TODO:
-def stopwords():
-    pass
+def replace_emojis(sent):
+    """ Replace emoticon with predefined :text:. """
+    return emoji.demojize(sent)
 
 def replace_urls(sent):
     return sent.replace('URL', 'http')
@@ -75,16 +62,16 @@ def replace_urls(sent):
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
                      add_cap_sign):
     funcs = [replace_urls] # default
-    if not demojize:
-        funcs.append(replace_emoji)
+    if demojize:
+        funcs.append(replace_emojis)
     if mention_limit > 0:
-        funcs.append(partial(limit_mention, keep_num=mention_limit))
+        funcs.append(partial(limit_mentions, keep_num=mention_limit))
     if punc_limit > 0:
-        funcs.append(partial(limit_punctuation, keep_num=punc_limit))
-    if not lower_hashtag:
-        funcs.append(lower_hashtag_)
+        funcs.append(partial(limit_punctuations, keep_num=punc_limit))
+    if lower_hashtag:
+        funcs.append(lower_hashtags)
     if add_cap_sign:
-        funcs.append(add_capital_sign)
+        funcs.append(add_capital_signs)
     return compose(*funcs)
 
 # TODO: consider using Config
