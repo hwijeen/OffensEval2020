@@ -116,20 +116,20 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                self.summarize_training()
-                return self.model
+                print(f'Max train step({train_step}) reached, terminating training...')
+                summary = self.summarize_training()
+                return self.model, summary
 
     def summarize_training(self):
-        print('*' * 60)
-        print(f'Best model found at {self.early_stopper.best_step} step,')
+        summary = f'Best model found at {self.early_stopper.best_step} step,\n'
         if self.test_iter is not None:
             test_acc, test_f1 = self.evaluate(self.test_iter)
-            print(f'Test acc:{test_acc}, Test_f1:{test_f1}')
+            summary += f'Test acc:{test_acc}, Test_f1:{test_f1}'
         else:
             dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-            print(f'Dev acc:{dev_acc}, Test_f1:{dev_f1}')
-        print('*' * 60)
+            summary+= f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
         self.writer.close()
+        return summary
 
     def record(self, step, loss, val_loss, val_acc, val_f1,
                train_acc=None, train_f1=None, test_acc=None, test_f1=None):

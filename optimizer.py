@@ -1,5 +1,5 @@
 import re
-from transformers import AdamW, get_linear_schedule_with_warmup
+from transformers import AdamW, get_linear_schedule_with_warmup, get_constant_schedule
 
 # TODO: training strategy
 def build_optimizer_scheduler(model, lr, eps, warmup, weight_decay,
@@ -19,6 +19,7 @@ def build_optimizer_scheduler(model, lr, eps, warmup, weight_decay,
 
     optimizer = AdamW(optimizer_grouped_parameters, lr, eps, correct_bias=False)
     scheduler = get_linear_schedule_with_warmup(optimizer, warmup, train_step)
+    #scheduler = get_constant_schedule(optimizer)
     return optimizer, scheduler
 
 

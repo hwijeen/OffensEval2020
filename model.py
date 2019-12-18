@@ -23,7 +23,7 @@ class CLSClassifier(nn.Module):
             x (torch.FloatTensor): logits of shape (batch_size, NUM_CLASS)
         
         """
-        x_mask = sequence_mask(length, pad=0)              # (batch_size, max_length)
+        x_mask = sequence_mask(length, pad=0, dtype=torch.float)  # (batch_size, max_length)
         _, x = self.model(x, attention_mask=x_mask)  # (batch_size, hidden_size)
         x = self.out(x)                             # (batch_size, NUM_CLASS)
         return x
@@ -68,7 +68,6 @@ class AvgPoolClassifier(CLSClassifier):
 def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
     n_class = task_to_n_class[task]
     if model == 'bert':
-        #base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
         base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
         base_model.resize_token_embeddings(new_num_tokens)
     elif model == 'roberta':
