@@ -7,7 +7,7 @@ import torch
 from dataloading import build_data
 from model import build_model
 from trainer import build_trainer
-from utils import write_result_to_file
+from utils import write_result_to_file, write_summary_to_file
 from optimizer import build_optimizer_scheduler
 from preprocessing import build_preprocess, build_tokenizer
 
@@ -128,8 +128,15 @@ if __name__ == "__main__":
     logger.info(f'Training logs are in {exp_name}')
     logger.info(f'Preprocessing options')
     logger.info(f'Number of vocab and data size')
-    trained_model = trainer.train(args.train_step)
+    trained_model, summary = trainer.train(args.train_step)
 
-    file_name = f'runs/{exp_name}/prediction.tsv'
+    pred_file_name = f'runs/{exp_name}/prediction.tsv'
+    summary_file_name = f'runs/{exp_name}/summary.txt'
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
-                         file_name, exp_name)
+                         args, pred_file_name)
+    write_summary_to_file(summary, args, summary_file_name)
+
+    print('\n******************* Training summary *******************')
+    print(f'exp_name: {exp_name}', end='\n\n')
+    print(summary)
+    print('********************************************************')

@@ -15,26 +15,19 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
-
-def replace_emojis(sent):
-    """ Replace emoticon with predefined :text:. """
-    return emoji.demojize(sent)
-
 def lower_hashtags(sent):
-    """Lower hashtags so that, for example, maga and MAGA are recognized as same.
-    This is important because we replace hasgtags that appears less than given frequency"""
-    return re.sub('#[\S]+', lambda match: match.group().lower(), sent)
+    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-def delete_hashtags(sent):
-    return re.sub('#[\S]+', '', sent)
+def delete_hashtags(sent): # not used
+    return re.sub('#[\w]+', '', sent)
+
+def _has_cap(token):
+    return token.lower() != token and token.upper() != token
+
+def _all_cap(token):
+    return token.lower() != token and token.upper() == token
 
 def add_capital_signs(text):
-    def _has_cap(token):
-        return token.lower() != token and token.upper() != token
-
-    def _all_cap(token):
-        return token.lower() != token and token.upper() == token
-
     exceptions = ['@USER', 'URL']
     tokens = text.split()
     tokens = ['<has_cap> ' + t if _has_cap(t) and t not in exceptions else t for t in tokens]
@@ -50,14 +43,18 @@ def _limit_pattern(sent, pattern, keep_num):
     pattern_regex = re_pattern + '{' + str(keep_num+1) + ',}'
     return re.sub(pattern_regex, lambda match: pattern * keep_num, sent)
 
-def limit_mentions(sent, keep_num):
-    return _limit_pattern(sent, '@USER', keep_num)
-
 def limit_punctuations(sent, keep_num):
     puncs = ['!', '?', '.']
     for p in puncs:
         sent = _limit_pattern(sent, p, keep_num)
     return sent
+
+def limit_mentions(sent, keep_num):
+    return _limit_pattern(sent, '@USER', keep_num)
+
+def replace_emojis(sent):
+    """ Replace emoticon with predefined :text:. """
+    return emoji.demojize(sent)
 
 def replace_urls(sent):
     """Replace actual URL to `http`"""
@@ -71,15 +68,15 @@ def replace_users(sent):
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
                      add_cap_sign, replace_user=False):
     funcs = [replace_urls] # default
+    if demojize:
+        funcs.append(replace_emojis)
     if replace_user: # fine-tune LM data
         funcs.append(replace_users)
-    if not demojize:
-        funcs.append(replace_emojis)
     if mention_limit > 0:
         funcs.append(partial(limit_mentions, keep_num=mention_limit))
     if punc_limit > 0:
         funcs.append(partial(limit_punctuations, keep_num=punc_limit))
-    if not lower_hashtag:
+    if lower_hashtag:
         funcs.append(lower_hashtags)
     if add_cap_sign:
         funcs.append(add_capital_signs)
