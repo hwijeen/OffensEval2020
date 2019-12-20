@@ -67,6 +67,10 @@ class AvgPoolClassifier(CLSClassifier):
 # TODO: fix hardcoding of model names(need to be compatiable with preprocessing)
 def build_model(task, model, pooling, new_num_tokens, device, **kwargs):
     n_class = task_to_n_class[task]
+    if 'checkpoint' in model:
+        base_model = BertModel.from_pretrained(model, **kwargs)
+        base_model.resize_token_embeddings(new_num_tokens)
+
     if model == 'bert':
         base_model = BertModel.from_pretrained('bert-base-uncased', **kwargs)
         base_model.resize_token_embeddings(new_num_tokens)

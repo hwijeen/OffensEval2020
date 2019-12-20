@@ -105,6 +105,8 @@ class TransformersData(Data):
 
 
 def build_data(model, *args, **kwargs):
+    if 'checkpoint' in model:
+        return TransformersData(*args, **kwargs)
     if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
         return TransformersData(*args, **kwargs)
     else:

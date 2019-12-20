@@ -116,8 +116,8 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                self.summarize_training()
-                return self.model
+                summary = self.summarize_training()
+                return self.model, summary
 
     def summarize_training(self):
         summary = f'Best model found at {self.early_stopper.best_step} step,\n'

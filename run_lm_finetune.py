@@ -80,13 +80,16 @@ class TextDataset(Dataset):
             logger.info("Creating features from dataset file at %s", directory)
 
             self.examples = []
-            with open(file_path, encoding="utf-8") as f:
-                text = f.read()
+            for text in open(file_path, encoding="utf-8"):
+                tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+                self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text))
+            #with open(file_path, encoding="utf-8") as f:
+            #    text = f.read()
 
-            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+            #tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
 
-            for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
-                self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i:i + block_size]))
+            #for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
+            #    self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i:i + block_size]))
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
@@ -100,6 +103,17 @@ class TextDataset(Dataset):
 
     def __getitem__(self, item):
         return torch.tensor(self.examples[item])
+
+# FIXME: fills with 101(id for CLS token), so as to be masked with `get_special_tokens_mask`
+def collate_fn(data):
+    # batch is a tensor of size (batch_size, seq_len)
+    data.sort(key=lambda x: len(x), reverse=True)
+    lengths = [len(ex) for ex in data]
+    batch = data[0].new_zeros(len(data), max(lengths)).fill_(101).long()
+    for i in range(len(data)):
+        end = lengths[i]
+        batch[i, :end] = data[i][:end]
+    return batch
 
 
 def load_and_cache_examples(args, tokenizer, evaluate=False):
@@ -176,7 +190,8 @@ def train(args, train_dataset, model, tokenizer):
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size,
+                                  collate_fn=collate_fn)
 
     if args.max_steps > 0:
         t_total = args.max_steps
@@ -432,7 +447,7 @@ def main():
     parser.add_argument("--do_lower_case", action='store_true',
                         help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=4, type=int,
+    parser.add_argument("--per_gpu_train_batch_size", default=32, type=int,
                         help="Batch size per GPU/CPU for training.")
     parser.add_argument("--per_gpu_eval_batch_size", default=4, type=int,
                         help="Batch size per GPU/CPU for evaluation.")

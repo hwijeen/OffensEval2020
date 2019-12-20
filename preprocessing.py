@@ -86,6 +86,9 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
 # TODO: Fix hard code of model names(also in build_model)
 def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
                     preprocess):
+    if 'checkpoint' in model:
+        tokenizer = BertTokenizer.from_pretrained(model)
+
     if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
         if model == 'bert':
             tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -110,12 +113,13 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
             tokenizer.add_tokens(new_tokens)
         if add_cap_sign:
             tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
-        if preprocess is not None:
-            tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
 
     else:
         # TODO: when not using bert
         pass
+
+    if preprocess is not None:
+        tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
     return tokenizer
 
 def build_freq_dict(train_corpus, which):
