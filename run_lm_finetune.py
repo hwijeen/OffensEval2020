@@ -69,8 +69,10 @@ class TextDataset(Dataset):
     def __init__(self, tokenizer, args, file_path='train', block_size=512):
         assert os.path.isfile(file_path)
         directory, filename = os.path.split(file_path)
+        #cached_features_file = os.path.join(directory,
+        #                                    args.model_name_or_path + '_cached_lm_' + str(block_size) + '_' + filename)
         cached_features_file = os.path.join(directory,
-                                            args.model_name_or_path + '_cached_lm_' + str(block_size) + '_' + filename)
+                                            args.output_dir + '_cached_lm_' + str(block_size) + '_' + filename)
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
@@ -183,10 +185,10 @@ def mask_tokens(inputs, tokenizer, args):
     return inputs, labels
 
 
-def train(args, train_dataset, model, tokenizer):
+def train(args, train_dataset, model, tokenizer, note):
     """ Train the model """
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter('runs/' + note)
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
@@ -500,6 +502,7 @@ def main():
     parser.add_argument('--hashtag_min_freq', type=int, default=10)
     parser.add_argument('--add_cap_sign', action='store_true')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--note', default='')
 
     args = parser.parse_args()
     if args.debug:
@@ -585,7 +588,7 @@ def main():
         if args.local_rank == 0:
             torch.distributed.barrier()
 
-        global_step, tr_loss = train(args, train_dataset, model, tokenizer)
+        global_step, tr_loss = train(args, train_dataset, model, tokenizer, args.note)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use save_pretrained for the model and tokenizer, you can reload them using from_pretrained()
