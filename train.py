@@ -31,9 +31,9 @@ def parse_args():
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--punctuation') # not implemented
     preprocess.add_argument('--demojize', action='store_true')
-    preprocess.add_argument('--emoji_min_freq', type=int, default=10)
+    preprocess.add_argument('--emoji_min_freq', type=int, default=0)
     preprocess.add_argument('--lower_hashtag', action='store_true')
-    preprocess.add_argument('--hashtag_min_freq', type=int, default=10)
+    preprocess.add_argument('--hashtag_min_freq', type=int, default=0)
     preprocess.add_argument('--add_cap_sign', action='store_true')
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
@@ -41,10 +41,12 @@ def parse_args():
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
-    model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
+    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max'], nargs='+', default='avg')
+    model.add_argument('--layer_pooling', choices=['avg', 'weighted_avg', 'concat'], nargs='+', default='avg')
+    model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=12)
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
-    model.add_argument('--layer', type=int, default=0)
+
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
@@ -74,10 +76,12 @@ def parse_args():
 
 def generate_exp_name(args):
     model = f'model_{args.model}'
-    pooling = f'pooling_{args.pooling}'
+    time_pooling = f'time_pooling_{args.time_pooling}'
+    layer_pooling = f'layer_pooling_{args.layer_pooling}'
+    layer = f"layer_{'_'.join(map(str, args.layer))}"
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
-    exp_name = '_'.join([model, pooling, lr, task, args.note])
+    exp_name = '_'.join([model, time_pooling, lr, task, args.note])
     return exp_name
 
 # TODO: save args for reproducible exp
@@ -105,7 +109,8 @@ if __name__ == "__main__":
                            device=args.device)
     model = build_model(task=args.task,
                         model=args.model,
-                        pooling=args.pooling,
+                        time_pooling=args.time_pooling,
+                        layer_pooling=args.layer_pooling,
                         layer=args.layer,
                         new_num_tokens=len(tokenizer),
                         hidden_dropout_prob=args.hidden_dropout_prob,
