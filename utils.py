@@ -93,7 +93,7 @@ def running_avg_list(x_list, x, alpha=0.9):
         mu = 0
     return running_avg(mu, x, alpha)
 
-def write_result_to_file(model, data_iter, tokenizer, file_name, exp_name):
+def write_result_to_file(model, data_iter, tokenizer, args_, file_name):
     model.eval()
     data_iter.repeat = False
     ids, tweets, preds, golds, probs = [], [], [], [], []
@@ -112,16 +112,24 @@ def write_result_to_file(model, data_iter, tokenizer, file_name, exp_name):
             golds += map(str, gold)
             probs += [' '.join(map(str, p)) for p in prob]
     header = ['id', 'tweet', 'pred', 'gold', 'prob']
-    write_to_file(file_name, exp_name, header, ids, tweets, preds, golds, probs)
+    to_write = [header, ids, tweets, preds, golds, probs]
+    write_to_file(file_name, args_, *to_write )
 
 format_to_sep = {'.tsv': '\t', '.csv': ','}
-def write_to_file(file_name, exp_name, header, *args):
+def write_to_file(file_name, args_, header, *args):
     basename, format = os.path.splitext(file_name)
     assert format in format_to_sep
     sep = format_to_sep[format]
     with open(file_name, 'w') as f:
-        f.write(exp_name + '\n')
-        f.write(sep.join(header) + '\n')
+        print(args_, file=f)
+        print(sep.join(header), file=f)
         for line in zip(*args):
-            sep_line = sep.join(line) + '\n'
-            f.write(sep_line)
+            print(sep.join(line), file=f)
+
+def write_summary_to_file(summary, args, file_name):
+    with open(file_name, 'w') as f:
+        print(args, file=f, end='\n\n')
+        print('*' * 60, file=f)
+        print(summary, file=f)
+        print('*' * 60, file=f)
+

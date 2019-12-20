@@ -30,65 +30,63 @@ class TransformersField(Field):
 
 
 class Data(object):
-    """ Holds Datasets, Iterators. """
-    def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                 batch_size, device):
+    """Build field, dataset, and then data iterators. """
+    def __init__(self, train_path, task, preprocessing, tokenizer,
+                 batch_size, device, test_path=None):
         self.task = task
         self.device = device
         self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(
-            train_path, test_path)
-        self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter =\
-            self.build_iterator(batch_size, device)
+        train, val = self.build_dataset(train_path)
+        self.train_iter, self.val_iter = self.build_iterator((train, val), batch_size, device)
+        if test_path is not None:
+            test = self.build_dataset(test_path, istest=True)
+            self.test_iter = self.build_iterator(test, batch_size, device, istest=True)
+        self.build_vocab(train, val)
 
     def build_field(self, task, tokenizer, preprocessing):
         ID = RawField()
-        TWEET = Field(preprocessing=preprocessing,
-                      batch_first=True)
+        TWEET = Field(preprocessing=preprocessing, batch_first=True)
         fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
                   ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None, is_target=True)
         fields[task_to_col_idx[task]] = ('label', LABEL)
         return fields
 
-    # TODO: Check stratified split is correct
-    def build_dataset(self, train_path, test_path):
-        train_val = TabularDataset(train_path, 'tsv', self.fields,
-                                   skip_header=True,
-                                   filter_pred=lambda x: x.label != 'NULL')
-        train, val = train_val.split(split_ratio=0.9, stratified=True, random_state=state)
-        test = TabularDataset(test_path, 'tsv', self.fields, skip_header=True,
-                              filter_pred=lambda x: x.label != 'NULL')
-        return train, val, test
+    def build_dataset(self, data_path, istest=False):
+        dataset = TabularDataset(data_path, 'tsv', self.fields,
+                                 skip_header=True,
+                                 filter_pred=lambda x: x.label != 'NULL')
+        if istest:
+            return dataset
+        else:
+            return dataset.split(split_ratio=0.9, stratified=True, random_state=state)
 
-    def build_vocab(self):
-        self.fields['tweet'].build_vocab(self.train, self.val)
-        self.train.fields['label'].build_vocab(self.train, self.val)
+    def build_vocab(self, train, val):
+        train.fields['tweet'].build_vocab(train, val)
+        train.fields['label'].build_vocab(train, val)
 
     # TODO: enable loading only test data
-    # TODO: balanced batch needed?
-    def build_iterator(self, batch_size, device):
-        return BucketIterator.splits((self.train, self.val, self.test),
-                                      batch_size=batch_size,
-                                      sort_key=lambda x: len(x.tweet),
-                                      sort_within_batch=True, repeat=True,
-                                      device=device)
+    def build_iterator(self, dataset, batch_size, device, istest=False):
+        if istest:
+            return BucketIterator(dataset, batch_size=batch_size,
+                                  sort_key=lambda x: len(x.tweet),
+                                  sort_within_batch=True, repeat=True,
+                                  device=device)
+        else:
+            train, val = dataset
+            return BucketIterator.splits((train, val), batch_size=batch_size,
+                                         sort_key=lambda x: len(x.tweet),
+                                         sort_within_batch=True, repeat=True,
+                                         device=device)
 
 
 class TransformersData(Data):
-    def __init__(self, train_path, test_path, task, preprocessing, tokenizer,
-                batch_size, device):
-        self.task = task
-        self.device = device
-        self.fields = self.build_field(task, tokenizer, preprocessing)
-        self.train, self.val, self.test = self.build_dataset(
-            train_path, test_path)
-        self.build_vocab()
-        self.train_iter, self.val_iter, self.test_iter =\
-            self.build_iterator(batch_size, device)
+    """Data format for Transformers model. """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def build_field(self, task, tokenizer, preprocessing):
+        """Use custom defined TransformerField which is an extension of torchtext.Field"""
         ID = RawField()
         TWEET = TransformersField(tokenizer, include_lengths=True,
                                   use_vocab=False, batch_first=True,
@@ -101,8 +99,10 @@ class TransformersData(Data):
         fields[task_to_col_idx[task]] = ('label', LABEL)
         return fields
 
-    def build_vocab(self):
-        self.train.fields['label'].build_vocab(self.train, self.val)
+    def build_vocab(self, train, val):
+        """Does not make vocab for TWEET field as it is given by Transformers models"""
+        train.fields['label'].build_vocab(train, val)
+
 
 def build_data(model, *args, **kwargs):
     if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
