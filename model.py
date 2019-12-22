@@ -33,13 +33,20 @@ class CLSClassifier(nn.Module):
         return logits.argmax(1)
 
 
-class AvgPoolClassifier(CLSClassifier):
+class PoolClassifier(CLSClassifier):
     def __init__(self, transformer_model, n_class, time_pooling, layer_pooling, layer):
         super().__init__(transformer_model, n_class)
+        pool_time = {'avg': self.avg_pool, 'max': self.max_pool, 'max_avg': self.max_avg_pool}
+        pool_layer = {'avg': self.avg_layer, 'max': self.max_layer,
+                      'cat': self.concat_layer, 'weight': self.weighted_avg_layer}
         self.layer = layer
-        self.time_pooling = time_pooling
-        self.layer_pooling = layer_pooling
-        self.hidden_size = self.model.config.hidden_size * len(layer)
+        self.time_pooling = pool_time[time_pooling]
+        self.layer_pooling = pool_layer[layer_pooling]
+        self.hidden_weights = nn.Linear(len(layer), 1)
+        self.single_hidden_size = self.model.config.hidden_size * 2 if time_pooling == 'max_avg' \
+            else self.model.config.hidden_size
+        self.hidden_size = self.single_hidden_size * len(layer) if layer_pooling == 'cat' \
+            else self.single_hidden_size
         self.out = nn.Linear(self.hidden_size, n_class)
 
     def avg_pool(self, x, length):
@@ -48,6 +55,31 @@ class AvgPoolClassifier(CLSClassifier):
         x = x.squeeze()  # (batch_size, hidden_size)
         x = x / length.unsqueeze(-1).float()
         return x
+
+    def max_pool(self, x, length):
+        x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
+        x = torch.max(x, dim=1).values
+        return x
+
+    def max_avg_pool(self, x, length):
+        x_mean = self.avg_pool(x, length)
+        x_max = self.max_pool(x, length)
+        return torch.cat([x_mean, x_max], dim=1)
+
+    def avg_layer(self, hiddens):
+        avg_h = torch.stack(hiddens).mean(dim=0)
+        return avg_h
+
+    def weighted_avg_layer(self, hiddens):
+        avg_h = self.hidden_weights(torch.stack(hiddens, dim=-1))
+        return avg_h.squeeze(-1)
+
+    def max_layer(self, hiddens):
+        max_h = torch.stack(hiddens).max(dim=0).values
+        return max_h
+
+    def concat_layer(self, hiddens):
+        return torch.cat(hiddens, dim=1)
 
     def forward(self, x, length):
         """Maps input to last hidden state, to pooler_output, to prediction
@@ -63,9 +95,13 @@ class AvgPoolClassifier(CLSClassifier):
         x_mask = sequence_mask(length, pad=0, dtype=torch.float)  # (batch_size, max_length)
         # TODO: clean this hack
         try: # bert, roberta
-            _, _, hidden_states = self.model(x, attention_mask=x_mask)
-            x = torch.cat([self.avg_pool(hidden_states[layer], length)
-                           for layer in self.layer], dim=1)
+            _, cls, hidden_states = self.model(x, attention_mask=x_mask)
+            # hidden_states : length 13 tuple of tensors (batch_size, max_length, hidden_size)
+            if len(self.layer) == 1:
+                x = self.time_pooling(hidden_states[self.layer[0]], length)
+            else:
+                x = self.layer_pooling([self.time_pooling(hidden_states[layer], length)
+                                        for layer in self.layer])
         except: # xlm, xlnet
             x = self.model(x, attention_mask=x_mask)        # (batch_size, seq_length, hidden_size)
             x = x[0]
@@ -98,10 +134,8 @@ def build_model(task, model, time_pooling, layer_pooling, layer,
 
     if time_pooling == 'cls':
         model = CLSClassifier(base_model, n_class)
-    elif time_pooling == 'avg':
-        model = AvgPoolClassifier(base_model, n_class, time_pooling, layer_pooling, layer)
     else:
-        pass
+        model = PoolClassifier(base_model, n_class, time_pooling, layer_pooling, layer)
     return model.to(device)
 
 
