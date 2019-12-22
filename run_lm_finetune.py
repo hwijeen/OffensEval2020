@@ -52,7 +52,7 @@ from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForMaskedLM, RobertaTokenizer,
                           DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer,
                           CamembertConfig, CamembertForMaskedLM, CamembertTokenizer)
-from preprocessing import build_tokenizer
+from preprocessing import build_tokenizer, build_preprocess
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class TextDataset(Dataset):
             logger.info("Creating features from dataset file at %s", directory)
 
             self.examples = []
-            for text in open(file_path, encoding="utf-8"):
+            for text in open(file_path, encoding="utf-8", errors='ignore'):
                 tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
                 self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text))
             #with open(file_path, encoding="utf-8") as f:
@@ -477,7 +477,7 @@ def main():
 
     parser.add_argument('--logging_steps', type=int, default=50,
                         help="Log every X updates steps.")
-    parser.add_argument('--save_steps', type=int, default=100,
+    parser.add_argument('--save_steps', type=int, default=1000,
                         help="Save checkpoint every X updates steps.")
     parser.add_argument('--save_total_limit', type=int, default=10,
                         help='Limit the total amount of checkpoints, delete the older checkpoints in the output_dir, does not delete by default')
@@ -506,8 +506,13 @@ def main():
     parser.add_argument('--emoji_min_freq', type=int, default=10)
     parser.add_argument('--hashtag_min_freq', type=int, default=10)
     parser.add_argument('--add_cap_sign', action='store_true')
+    parser.add_argument('--demojize', action='store_true')
+    parser.add_argument('--lower_hashtag', action='store_true')
+    parser.add_argument('--mention_limit', type=int, default=3)
+    parser.add_argument('--punc_limit', type=int, default=3)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--note', default='')
+    parser.add_argument('--replace_user', action='store_true')
 
     args = parser.parse_args()
     if args.debug:
@@ -567,8 +572,11 @@ def main():
     #tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
     #                                            do_lower_case=args.do_lower_case,
     #                                            cache_dir=args.cache_dir if args.cache_dir else None)
+    preprocessing = build_preprocess(args.demojize, args.mention_limit,
+                                     args.punc_limit, args.lower_hashtag,
+                                     args.add_cap_sign, args.replace_user)
     tokenizer = build_tokenizer(args.model_type, args.emoji_min_freq, args.hashtag_min_freq,
-                                args.add_cap_sign, preprocess=None)
+                                args.add_cap_sign, preprocess=preprocessing)
     if args.block_size <= 0:
         args.block_size = tokenizer.max_len_single_sentence  # Our input block size will be the max possible for the model
     args.block_size = min(args.block_size, tokenizer.max_len_single_sentence)
