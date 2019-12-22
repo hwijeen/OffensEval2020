@@ -103,7 +103,7 @@ class TransformersData(Data):
         """Does not make vocab for TWEET field as it is given by Transformers models"""
         train.fields['label'].build_vocab(train, val)
 
-
+# TODO: fix codes with 'checkpoint' in model
 def build_data(model, *args, **kwargs):
     if 'checkpoint' in model:
         return TransformersData(*args, **kwargs)

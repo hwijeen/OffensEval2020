@@ -105,18 +105,18 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
         else:
             pass
 
-        if emoji_min_freq > 0:
-            new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
-            tokenizer.add_tokens(new_tokens)
-        if hashtag_min_freq > 0:
-            new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
-            tokenizer.add_tokens(new_tokens)
-        if add_cap_sign:
-            tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
+    if emoji_min_freq > 0:
+        new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
+        tokenizer.add_tokens(new_tokens)
+    if hashtag_min_freq > 0:
+        new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
+        tokenizer.add_tokens(new_tokens)
+    if add_cap_sign:
+        tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
 
-    else:
-        # TODO: when not using bert
-        pass
+    #else:
+    #    # TODO: when not using bert
+    #    pass
 
     if preprocess is not None:
         tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)

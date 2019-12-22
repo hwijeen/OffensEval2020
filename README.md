@@ -14,7 +14,9 @@ python merge_test.py # merge 3 test data into one file
 ## Quick start
 
 ```bash
-python train.py --task a --model bert --pooling avg --demojize --lower_hashtag --weight_decay 0.01 --warmup 1000 
+python run_lm_finetune.py --mlm --do_train --block_size 20 --do_lower_case --output_dir finetuned_by_examples --model_name_or_path finetuned_by_examples/checkpoint-50000 --overwrite_output_dir --num_train_epochs 2.5 --note resuming 
+python run_lm_finetune.py --mlm --do_train --block_size 20 --do_lower_case --output_dir finetuned_2.5epoch --overwrite_output_dir  --num_train_epochs 2.5 --note from_scratch 
+python train.py --task a --model finetuned_by_examples/checkpoint-74100  --pooling avg --demojize --lower_hashtag --weight_decay 0.01 --warmup 1000 
 ```
 
 

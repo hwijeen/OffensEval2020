@@ -33,6 +33,7 @@ import shutil
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from setproctitle import setproctitle
@@ -266,6 +267,10 @@ def train(args, train_dataset, model, tokenizer, note):
 
     model_to_resize = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
     model_to_resize.resize_token_embeddings(len(tokenizer))
+    # NOTE: quick fix...
+    output_bias = model_to_resize.cls.predictions.bias
+    resized = model_to_resize.cls.predictions.decoder.out_features
+    model_to_resize.cls.predictions.bias = nn.Parameter(output_bias.new_zeros(resized))
 
     model.zero_grad()
     train_iterator = trange(epochs_trained, int(args.num_train_epochs), desc="Epoch",
@@ -413,7 +418,7 @@ def main():
     ## Required parameters
     parser.add_argument("--train_data_file", default='../resources/tweet_corpus.txt', type=str,
                         help="The input training data file (a text file).")
-    parser.add_argument("--output_dir", default='../resources/finetuned', type=str,
+    parser.add_argument("--output_dir", default='../finetuned', type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
     ## Other parameters
@@ -559,11 +564,11 @@ def main():
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path,
                                           cache_dir=args.cache_dir if args.cache_dir else None)
-    tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
-                                                do_lower_case=args.do_lower_case,
-                                                cache_dir=args.cache_dir if args.cache_dir else None)
-    #tokenizer = build_tokenizer(args.model_type, args.emoji_min_freq, args.hashtag_min_freq,
-    #                            args.add_cap_sign, preprocess=None)
+    #tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+    #                                            do_lower_case=args.do_lower_case,
+    #                                            cache_dir=args.cache_dir if args.cache_dir else None)
+    tokenizer = build_tokenizer(args.model_type, args.emoji_min_freq, args.hashtag_min_freq,
+                                args.add_cap_sign, preprocess=None)
     if args.block_size <= 0:
         args.block_size = tokenizer.max_len_single_sentence  # Our input block size will be the max possible for the model
     args.block_size = min(args.block_size, tokenizer.max_len_single_sentence)
