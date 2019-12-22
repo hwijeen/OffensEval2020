@@ -77,9 +77,9 @@ def parse_args():
 
 def generate_exp_name(args):
     model = f'model_{args.model}'
-    time_pooling = f'time_pooling_{args.time_pooling}'
-    layer_pooling = f'layer_pooling_{args.layer_pooling}'
-    layer = f"layer_{'_'.join(map(str, args.layer))}"
+    time_pooling = f'pool_time_{args.time_pooling}'
+    layer_pooling = f'layer_{args.layer_pooling}'
+    layer = '_'.join(map(str, args.layer))
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
     exp_name = '_'.join([model, time_pooling, lr, task, layer_pooling, layer, args.note])
