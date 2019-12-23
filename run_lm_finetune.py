@@ -420,7 +420,6 @@ def evaluate(args, model, tokenizer, prefix=""):
 
 
 def main():
-    setproctitle("LM fine-tune")
     parser = argparse.ArgumentParser()
 
     ## Required parameters
@@ -526,6 +525,7 @@ def main():
     parser.add_argument('--layer_decrease', type=float, default=1)
 
     args = parser.parse_args()
+    setproctitle(args.note)
     if args.debug:
         args.train_data_file = '../resources/tweet_corpus_debug.txt'
         print("Debugging mode!")
