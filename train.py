@@ -43,7 +43,7 @@ def parse_args():
     #model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
     model.add_argument('--model', default='bert')
     model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
-    model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
+    model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')

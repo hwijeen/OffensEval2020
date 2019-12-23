@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -53,6 +52,7 @@ from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
                           DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer,
                           CamembertConfig, CamembertForMaskedLM, CamembertTokenizer)
 from preprocessing import build_tokenizer, build_preprocess
+from optimizer import build_optimizer_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +70,10 @@ class TextDataset(Dataset):
     def __init__(self, tokenizer, args, file_path='train', block_size=512):
         assert os.path.isfile(file_path)
         directory, filename = os.path.split(file_path)
-        #cached_features_file = os.path.join(directory,
-        #                                    args.model_name_or_path + '_cached_lm_' + str(block_size) + '_' + filename)
         cached_features_file = os.path.join(directory,
-                                            args.output_dir + '_cached_lm_' + str(block_size) + '_' + filename)
+                                            args.model_name_or_path + '_cached_lm_' + str(block_size) + '_' + filename)
+        #cached_features_file = os.path.join(directory,
+        #                                    args.output_dir + '_cached_lm_' + str(block_size) + '_' + filename)
 
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
@@ -203,15 +203,23 @@ def train(args, train_dataset, model, tokenizer, note):
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
     # Prepare optimizer and schedule (linear warmup and decay)
-    no_decay = ['bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-         'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
-                                                num_training_steps=t_total)
+    #no_decay = ['bias', 'LayerNorm.weight']
+    #optimizer_grouped_parameters = [
+    #    {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+    #     'weight_decay': args.weight_decay},
+    #    {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    #]
+    #optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    #scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
+    #                                            num_training_steps=t_total)
+    train_step = (len(train_dataset) / args.train_batch_size) * args.num_train_epochs
+    args.warmup_steps = 0.1 * train_step
+    optimizer, scheduler = build_optimizer_scheduler(model, args.learning_rate,
+                                                     args.adam_epsilon,
+                                                     args.warmup_steps,
+                                                     args.weight_decay,
+                                                     args.layer_decrease,
+                                                     train_step)
 
     # Check if saved optimizer or scheduler states exist
     if os.path.isfile(os.path.join(args.model_name_or_path, 'optimizer.pt')) and os.path.isfile(
@@ -454,7 +462,7 @@ def main():
     parser.add_argument("--do_lower_case", action='store_true',
                         help="Set this flag if you are using an uncased model.")
 
-    parser.add_argument("--per_gpu_train_batch_size", default=32, type=int,
+    parser.add_argument("--per_gpu_train_batch_size", default=16, type=int,
                         help="Batch size per GPU/CPU for training.")
     parser.add_argument("--per_gpu_eval_batch_size", default=4, type=int,
                         help="Batch size per GPU/CPU for evaluation.")
@@ -468,7 +476,7 @@ def main():
                         help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
                         help="Max gradient norm.")
-    parser.add_argument("--num_train_epochs", default=1.0, type=float,
+    parser.add_argument("--num_train_epochs", default=3.0, type=float,
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
@@ -513,6 +521,9 @@ def main():
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--note', default='')
     parser.add_argument('--replace_user', action='store_true')
+
+    # discriminative fintuning
+    parser.add_argument('--layer_decrease', type=float, default=1)
 
     args = parser.parse_args()
     if args.debug:

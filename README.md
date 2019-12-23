@@ -15,8 +15,8 @@ cut -d ',' -f6- ../resources/training.1600000.processed.noemoticon.csv | sed -e 
 ## Quick start
 
 ```bash
-#python run_lm_finetune.py --mlm --do_train --block_size 20 --do_lower_case --output_dir finetuned_by_examples --model_name_or_path finetuned_by_examples/checkpoint-50000 --overwrite_output_dir --num_train_epochs 2.5 --note resuming 
-python run_lm_finetune.py --demojize --lower_hashtag --replace_user --mlm --do_train --block_size 1 --do_lower_case --num_train_epochs 2.5 --output_dir finetuned_with_added_tokens --overwrite_output_dir --note finetuned_with_added_tokens > ../finetuned_with_added_tokens
+#python run_lm_finetune.py ---demojize --lower_hashtag --replace_user -mlm --do_train --block_size 20 --do_lower_case --output_dir finetuned_by_examples --model_name_or_path finetuned_by_examples/checkpoint-50000 --overwrite_output_dir --num_train_epochs 2.5 --note resuming 
+nohup python run_lm_finetune.py --demojize --lower_hashtag --replace_user --mlm --do_train --block_size 1 --do_lower_case --num_train_epochs 2.5 --output_dir finetuned_with_added_tokens --overwrite_output_dir --note finetuned_with_added_tokens > ../finetuned_with_added_tokens
 python train.py --task a --model finetuned_by_examples/checkpoint-74100  --pooling avg --demojize --lower_hashtag --weight_decay 0.01 --warmup 1000 
 ```
 

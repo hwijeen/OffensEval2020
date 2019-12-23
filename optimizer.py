@@ -7,7 +7,11 @@ def build_optimizer_scheduler(model, lr, eps, warmup, weight_decay,
 
     def set_layer_lr(param_name):
         m = re.search('[\d]', param_name)
-        return lr * layer_decrease ** (model.model.config.num_hidden_layers - int(m.group())) if m else lr
+        try: # Our model
+            config = model.model.config
+        except: # BertForMaskedLM
+            config = model.config
+        return lr * layer_decrease ** (config.num_hidden_layers - int(m.group())) if m else lr
 
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters= []
@@ -17,7 +21,7 @@ def build_optimizer_scheduler(model, lr, eps, warmup, weight_decay,
         param_setting = {'params': p, 'weight_decay': wd, 'lr': lr_}
         optimizer_grouped_parameters.append(param_setting)
 
-    optimizer = AdamW(optimizer_grouped_parameters, lr, eps, correct_bias=False)
+    optimizer = AdamW(optimizer_grouped_parameters, lr, eps=eps, correct_bias=False)
     scheduler = get_linear_schedule_with_warmup(optimizer, warmup, train_step)
     #scheduler = get_constant_schedule(optimizer)
     return optimizer, scheduler
