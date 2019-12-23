@@ -1,6 +1,6 @@
+import os
 import argparse
 import logging
-from setproctitle import setproctitle
 
 import torch
 from setproctitle import setproctitle
@@ -38,16 +38,14 @@ def parse_args():
     preprocess.add_argument('--add_cap_sign', action='store_true')
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
-    preprocess.add_argument('--tokenize', default='bert')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
     model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='avg')
     model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
-    model.add_argument('--attention_probs_dropout_prob', type=float, default=0.3)
+    model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
-
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
@@ -85,7 +83,6 @@ def generate_exp_name(args):
     exp_name = '_'.join([model, time_pooling, lr, task, layer_pooling, layer, args.note])
     return exp_name
 
-# TODO: save args for reproducible exp
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
@@ -133,16 +130,20 @@ if __name__ == "__main__":
                             record_every=args.record_every,
                             exp_name=exp_name)
 
+    # TODO: logging here
     logger.info(f'Training logs are in {exp_name}')
     logger.info(f'Preprocessing options')
     logger.info(f'Number of vocab and data size')
     trained_model, summary = trainer.train(args.train_step)
 
-    pred_file_name = f'runs/{exp_name}/prediction.tsv'
-    summary_file_name = f'runs/{exp_name}/summary.txt'
+    dir = f'runs/{exp_name}'
+    pred_file = 'prediction.tsv'
+    summary_file = 'summary.txt'
+    args_file = 'args.bin'
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
-                         args, pred_file_name)
-    write_summary_to_file(summary, args, summary_file_name)
+                         args, os.path.join(dir, pred_file))
+    write_summary_to_file(summary, args, os.path.join(dir, summary_file))
+    torch.save(args, os.path.join(dir, args_file))
 
     print('\n******************* Training summary *******************')
     print(f'exp_name: {exp_name}', end='\n\n')
