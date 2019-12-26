@@ -8,7 +8,7 @@ from setproctitle import setproctitle
 from dataloading import build_data
 from model import build_model
 from trainer import build_trainer
-from utils import write_result_to_file, write_summary_to_file
+from utils import write_result_to_file, write_summary_to_file, write_args_to_file
 from optimizer import build_optimizer_scheduler
 from preprocessing import build_preprocess, build_tokenizer
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
                          args, os.path.join(dir, pred_file))
     write_summary_to_file(summary, args, os.path.join(dir, summary_file))
-    torch.save(args, os.path.join(dir, args_file))
+    write_args_to_file(args, os.path.join(dir, args_file))
 
     print('\n******************* Training summary *******************')
     print(f'exp_name: {exp_name}', end='\n\n')

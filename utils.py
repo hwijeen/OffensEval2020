@@ -133,3 +133,6 @@ def write_summary_to_file(summary, args, file_name):
         print(summary, file=f)
         print('*' * 60, file=f)
 
+def write_args_to_file(args, file_name):
+    torch.save(args, file_name)
+
