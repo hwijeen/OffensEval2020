@@ -12,26 +12,6 @@ def lines(func):
         return ret
     return wrapper
 
-@lines
-def print_label_vocab(data):
-    print('label dictionary: ', data.train.fields['label'].vocab.stoi)
-
-@lines
-def print_shape(batch):
-    for name in batch.fields:
-        if name == 'NULL':
-            continue
-        if name == 'id':
-            tensor = getattr(batch, name)
-            size = len(tensor)
-        elif name == 'tweet':
-            tensor, lengths = getattr(batch, name)
-            size = tensor.size()
-        elif name == 'label':
-            tensor = getattr(batch, name)
-            size = tensor.size()
-        print(f'batch.{name} is a {type(tensor)} of size {size}')
-
 def sequence_mask(lengths, pad=0, dtype=torch.bool):
     # make a mask matrix corresponding to given length
     # from https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/ops/array_ops.py

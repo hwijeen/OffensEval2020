@@ -17,27 +17,21 @@ def compose(*funcs):
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
 def textify_emojis(sent):
+    def textify_emojis_token(token):
+        token = token.strip(':')
+        token = re.sub('_', ' ', token)
+        return token
     tokens = [textify_emojis_token(token) for token in sent.split()]
     return ' '.join(tokens)
-
-def textify_emojis_token(token):
-    token = token.strip(':')
-    token = re.sub('_', ' ', token)
-    return token
-
-def limit_mention(sent, keep_num):
-    return _limit_pattern(sent, '@USER', keep_num)
 
 def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-def _has_cap(token):
-    return token.lower() != token and token.upper() != token
-
-def _all_cap(token):
-    return token.lower() != token and token.upper() == token
-
 def add_capital_signs(text):
+    def _has_cap(token):
+        return token.lower() != token and token.upper() != token
+    def _all_cap(token):
+        return token.lower() != token and token.upper() == token
     exceptions = ['@USER', 'URL']
     tokens = text.split()
     tokens = ['<has_cap> ' + t if _has_cap(t) and t not in exceptions else t for t in tokens]
@@ -157,6 +151,3 @@ def load_corpus(train_path='../data/olid-training-v1.0.tsv'):
 
 def get_tokens(counter, min_freq):
     return [token for token, freq in counter.items() if freq >= min_freq]
-
-if __name__ == "__main__":
-    tokenizer = build_tokenizer('bert', 3, 3)

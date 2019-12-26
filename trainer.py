@@ -122,13 +122,13 @@ class Trainer:
                 return self.model, summary
 
     def summarize_training(self):
-        summary = f'Best model found at {self.early_stopper.best_step} step,\n'
+        summary = f'Best model was found at {self.early_stopper.best_step} step,\n'
         if self.test_iter is not None:
             test_acc, test_f1 = self.evaluate(self.test_iter)
             summary += f'Test acc:{test_acc}, Test_f1:{test_f1}'
         else:
             dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-            summary+= f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
+            summary += f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
         self.writer.close()
         return summary
 
@@ -153,16 +153,16 @@ class Trainer:
         print(f'At step: {step}')
         print(f'\tTrain loss: {loss.item():.6f}')
         print(f'\tVal loss: {val_loss.item():.6f}')
-        print(f'\tVal acc: {val_acc:.2f}')
-        print(f'\tVal F1: {val_f1:.2f}')
+        print(f'\tVal acc: {val_acc:.4f}')
+        print(f'\tVal F1: {val_f1:.4f}')
         if train_acc is not None:
-            print(f'\tTrain acc: {train_acc:.2f}')
+            print(f'\tTrain acc: {train_acc:.4f}')
         if train_f1 is not None:
-            print(f'\tTrain f1: {train_f1:.2f}')
+            print(f'\tTrain f1: {train_f1:.4f}')
         if test_acc is not None:
-            print(f'\tTest acc: {test_acc:.2f}')
+            print(f'\tTest acc: {test_acc:.4f}')
         if test_f1 is not None:
-            print(f'\tTest f1: {test_f1:.2f}')
+            print(f'\tTest f1: {test_f1:.4f}')
 
     def evaluate(self, data_iter):
         self.model.eval()

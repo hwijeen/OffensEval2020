@@ -137,32 +137,3 @@ def build_model(task, model, time_pooling, layer_pooling, layer,
     else:
         model = PoolClassifier(base_model, n_class, time_pooling, layer_pooling, layer)
     return model.to(device)
-
-
-if __name__ == "__main__":
-    from dataloading import Data
-    from transformers import BertTokenizer
-
-    data_dir = '../data/olid/'
-    # task = 'A'
-    # task = 'B'
-    task = 'C'
-    batch_size = 32
-    device = torch.device('cuda') if torch.cuda.is_available() else 'cpu'
-    preprocessing = None
-    bert_tok = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = build_model(task, 'bert')
-    # model = build_model(task, 'bert_avg')
-
-    # Build data object
-    data = Data(data_dir, task, preprocessing, bert_tok, batch_size, device)
-
-    for batch in data.train_iter:
-        id_ = batch.id
-        tweet, lengths = batch.tweet
-        label = batch.label
-
-        logit = model(tweet, lengths)
-        print(logit)
-        print(logit.shape)
-        break

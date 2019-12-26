@@ -22,7 +22,3 @@ def build_optimizer_scheduler(model, lr, betas, eps, warmup_proportion, weight_d
     scheduler = get_linear_schedule_with_warmup(optimizer, warmup, train_step)
     #scheduler = get_constant_schedule(optimizer)
     return optimizer, scheduler
-
-
-if __name__ == "__main__":
-    pass
