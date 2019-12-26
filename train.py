@@ -9,7 +9,7 @@ from setproctitle import setproctitle
 from dataloading import build_data
 from model import build_model
 from trainer import build_trainer
-from utils import write_result_to_file, write_summary_to_file, write_args_to_file
+from utils import *
 from optimizer import build_optimizer_scheduler
 from preprocessing import build_preprocess, build_tokenizer
 
@@ -144,16 +144,20 @@ if __name__ == "__main__":
     trained_model, summary = trainer.train(args.train_step)
 
     dir = f'runs/{exp_name}'
-    pred_file = 'prediction.tsv'
-    summary_file = 'summary.txt'
-    args_file = 'args.bin'
-    write_result_to_file(trained_model, trainer.test_iter, tokenizer,
-                         args, os.path.join(dir, pred_file))
-    write_summary_to_file(summary, args, os.path.join(dir, summary_file))
-    write_args_to_file(args, os.path.join(dir, args_file))
+    best_model_file = os.path.join(dir, 'best_model.pt')
+    pred_file = os.path.join(dir, 'prediction.tsv')
+    summary_file = os.path.join(dir, 'summary.txt')
+    args_file = os.path.join(dir, 'args.bin')
+    model_name = write_model_to_file(trained_model, best_model_file)
+    pred_name = write_pred_to_file(trained_model, trainer.test_iter, tokenizer, args, pred_file)
+    args_name = write_args_to_file(args, args_file)
+    summary_name = write_summary_to_file(summary, args, summary_file)
 
     print('\n******************* Training summary *******************')
-    print(f'exp_name: {exp_name}', end='\n\n')
-    print(summary)
+    print(summary, end='\n\n')
+    print(f'Tensorboard exp_name: {exp_name}')
+    print(f'Best model saved at: {model_name}')
+    print(f'Prediction saved at: {model_name}')
+    print(f'Args saved at: {model_name}')
     print('********************************************************')
 
