@@ -102,8 +102,9 @@ class Trainer:
                 test_acc, test_f1 = None, None
                 if self.test_iter is not None:
                     test_acc, test_f1 = self.evaluate(self.test_iter)
-                self.record(step, loss, val_loss, val_acc, val_f1,
-                            train_acc, train_f1, test_acc, test_f1)
+                self.record(step, loss, self.scheduler.get_lr()[0],
+                            val_loss, val_acc, val_f1, train_acc, train_f1,
+                            test_acc, test_f1)
 
                 if self.verbose:
                     self.report(step, loss, val_loss, val_acc, val_f1,
@@ -131,10 +132,11 @@ class Trainer:
         self.writer.close()
         return summary
 
-    def record(self, step, loss, val_loss, val_acc, val_f1,
+    def record(self, step, loss, lr, val_loss, val_acc, val_f1,
                train_acc=None, train_f1=None, test_acc=None, test_f1=None):
         self.writer.add_scalar('Loss/train', loss.item(), step) # batch loss
         self.writer.add_scalar('Loss/val', val_loss.item(), step)
+        self.writer.add_scalar('lr', lr, step)
         self.writer.add_scalar('Acc/val', val_acc, step)
         self.writer.add_scalar('F1/val', val_f1, step)
         if train_acc is not None:
