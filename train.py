@@ -51,7 +51,7 @@ def parse_args():
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
-    optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
+    optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
@@ -65,7 +65,7 @@ def parse_args():
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=700)
     training.add_argument('--record_every', type=int, default=10)
-    training.add_argument('--patience', type=int, default=10)
+    training.add_argument('--patience', type=int, default=20)
     training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 

@@ -31,9 +31,6 @@ def limit_mention(sent, keep_num):
 def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-def delete_hashtag(sent):
-    return re.sub('#[\w]+', '', sent)
-
 def _has_cap(token):
     return token.lower() != token and token.upper() != token
 
