@@ -116,7 +116,7 @@ if __name__ == "__main__":
                         device=args.device)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
-                                                     eps=(args.beta1, args.beta2),
+                                                     betas=(args.beta1, args.beta2),
                                                      warmup=args.warmup,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
