@@ -15,7 +15,7 @@ class EarlyStopping:
         self.patience = patience
         self.delta = delta
         self.mode = mode
-        self.savedir = os.path.join(savedir, 'best_model.pt')
+        self.savedir = os.path.join(savedir, 'best_model_checkpoint.pt')
         self.verbose = verbose
         self.counter = 0
         self.best_step = None
@@ -47,9 +47,13 @@ class EarlyStopping:
         curr_score = -self.best_score if self.mode == 'min' else self.best_score
         if self.verbose:
             print(f'Best score on validation improved ({self.prev_best_score:.6f} -->'
-                  f'{curr_score:.6f}).  Saving model ...')
+                  f'{curr_score:.6f}). Checkpoint model saved.')
         torch.save(self.model.state_dict(), self.savedir)
         self.prev_best_score = curr_score
+
+    def delete_checkpoint(self):
+        if os.path.exists(self.savedir):
+            os.remove(self.savedir)
 
 
 class Trainer:
@@ -117,15 +121,16 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                print(f'Max train step({train_step}) reached, terminating training...')
+                print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 summary = self.summarize_training()
+                self.early_stopper.delete_checkpoint()
                 return self.model, summary
 
     def summarize_training(self):
-        summary = f'Best model was found at {self.early_stopper.best_step} step,\n'
+        summary = f'Best model was found at  step: {self.early_stopper.best_step}\n'
         if self.test_iter is not None:
             test_acc, test_f1 = self.evaluate(self.test_iter)
-            summary += f'Test acc:{test_acc}, Test_f1:{test_f1}'
+            summary += f'Test acc: {test_acc}, Test_f1: {test_f1}'
         else:
             dev_acc, dev_f1 = self.evaluate(self.dev_iter)
             summary += f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
