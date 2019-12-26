@@ -480,11 +480,11 @@ def main():
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
     parser.add_argument("--warmup_steps_portion", default=0.0, type=float,
-                        help="How many percentage of train step for linear warmup."
+                        help="How many percentage of train step for linear warmup.")
 
     parser.add_argument('--logging_steps', type=int, default=50,
                         help="Log every X updates steps.")
-    parser.add_argument('--save_steps', type=int, default=1000,
+    parser.add_argument('--save_steps', type=int, default=50000,
                         help="Save checkpoint every X updates steps.")
     parser.add_argument('--save_total_limit', type=int, default=10,
                         help='Limit the total amount of checkpoints, delete the older checkpoints in the output_dir, does not delete by default')
