@@ -75,7 +75,7 @@ def parse_args():
     return args
 
 def generate_exp_name(args):
-    model = f'model_{args.model}'
+    model = f'model_{args.model}'.replace('/', '_') # for `some/checkpoint`
     time_pooling = f'pool_time_{args.time_pooling}'
     layer_pooling = f'layer_{args.layer_pooling}'
     layer = '_'.join(map(str, args.layer))
