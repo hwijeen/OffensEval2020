@@ -74,12 +74,12 @@ def parse_args():
     return args
 
 def generate_exp_name(args):
-    model = f'model_{args.model}'
+    model = f'model_{args.model}'.replace('/', '_')
     pooling = f'pooling_{args.pooling}'
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
     exp_name = '_'.join([model, pooling, lr, task, args.note])
-    return exp_name
+    return 'lm_finetune' + exp_name
 
 # TODO: save args for reproducible exp
 if __name__ == "__main__":
