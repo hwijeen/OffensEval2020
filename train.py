@@ -50,6 +50,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
+    optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
     optimizer_scheduler.add_argument('--warmup', type=int, default=70)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
@@ -60,7 +61,7 @@ def parse_args():
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=700)
     training.add_argument('--record_every', type=int, default=10)
-    training.add_argument('--patience', type=int, default=10)
+    training.add_argument('--patience', type=int, default=20)
     training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 
@@ -112,7 +113,7 @@ if __name__ == "__main__":
                         device=args.device)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
-                                                     betas=(args.beta1, args.beta2),
+                                                     eps=args.eps,
                                                      warmup=args.warmup,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
