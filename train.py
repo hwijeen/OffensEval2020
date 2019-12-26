@@ -41,7 +41,7 @@ def parse_args():
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
-    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='avg')
+    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='max_avg')
     model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
