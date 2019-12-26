@@ -1,4 +1,5 @@
 import os
+import os
 import argparse
 import logging
 
@@ -38,6 +39,8 @@ def parse_args():
     preprocess.add_argument('--add_cap_sign', action='store_true')
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
+    preprocess.add_argument('--segment_hashtag', action='store_true')
+    preprocess.add_argument('--textify_emoji', action='store_true')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
@@ -48,7 +51,7 @@ def parse_args():
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
-    optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
+    optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
@@ -62,7 +65,7 @@ def parse_args():
     training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=700)
     training.add_argument('--record_every', type=int, default=10)
-    training.add_argument('--patience', type=int, default=10)
+    training.add_argument('--patience', type=int, default=20)
     training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 
@@ -92,7 +95,9 @@ if __name__ == "__main__":
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
                                   lower_hashtag=args.lower_hashtag,
-                                  add_cap_sign=args.add_cap_sign)
+                                  add_cap_sign=args.add_cap_sign,
+                                  segment_hashtag=args.segment_hashtag,
+                                  textify_emoji=args.textify_emoji)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,

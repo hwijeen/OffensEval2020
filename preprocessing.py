@@ -7,6 +7,7 @@ from collections import Counter
 from functools import reduce, partial
 
 import emoji
+from wordsegment import load, segment
 from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer, XLNetTokenizer
 
 resources_dir = '../resources/'
@@ -15,11 +16,20 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
+def textify_emojis(sent):
+    tokens = [textify_emojis_token(token) for token in sent.split()]
+    return ' '.join(tokens)
+
+def textify_emojis_token(token):
+    token = token.strip(':')
+    token = re.sub('_', ' ', token)
+    return token
+
+def limit_mention(sent, keep_num):
+    return _limit_pattern(sent, '@USER', keep_num)
+
 def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
-
-def delete_hashtags(sent): # not used
-    return re.sub('#[\w]+', '', sent)
 
 def _has_cap(token):
     return token.lower() != token and token.upper() != token
@@ -59,11 +69,17 @@ def replace_emojis(sent):
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
+def segment_hashtags(sent):
+    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #return re.sub('#[\w]+', lambda match: '#' + ' '.join(segment(match.group())), sent) # with '#' in front
+
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign):
+                     add_cap_sign, segment_hashtag, textify_emoji):
     funcs = [replace_urls] # default
     if demojize:
         funcs.append(replace_emojis)
+    if textify_emoji:
+        funcs.append(textify_emojis)
     if mention_limit > 0:
         funcs.append(partial(limit_mentions, keep_num=mention_limit))
     if punc_limit > 0:
@@ -72,6 +88,9 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(lower_hashtags)
     if add_cap_sign:
         funcs.append(add_capital_signs)
+    if segment_hashtag:
+        load()
+        funcs.append(segment_hashtags)
     return compose(*funcs)
 
 # TODO: consider using Config
