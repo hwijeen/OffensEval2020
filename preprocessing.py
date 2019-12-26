@@ -65,12 +65,12 @@ def limit_punctuations(sent, keep_num):
 def limit_mentions(sent, keep_num):
     return _limit_pattern(sent, '@USER', keep_num)
 
-def replace_urls(sent):
-    return sent.replace('URL', 'http')
-
 def replace_emojis(sent):
     """ Replace emoticon with predefined :text:. """
     return emoji.demojize(sent)
+
+def replace_urls(sent):
+    return sent.replace('URL', 'http')
 
 def segment_hashtags(sent):
     return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)

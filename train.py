@@ -1,8 +1,10 @@
+import os
+import os
 import argparse
 import logging
-from setproctitle import setproctitle
 
 import torch
+from setproctitle import setproctitle
 
 from dataloading import build_data
 from model import build_model
@@ -37,13 +39,14 @@ def parse_args():
     preprocess.add_argument('--add_cap_sign', action='store_true')
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
-    preprocess.add_argument('--tokenize', default='bert')
     preprocess.add_argument('--segment_hashtag', action='store_true')
     preprocess.add_argument('--textify_emoji', action='store_true')
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
-    model.add_argument('--pooling', choices=['cls', 'avg'], default='avg')
+    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='max_avg')
+    model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
+    model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
 
@@ -51,7 +54,8 @@ def parse_args():
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
-    optimizer_scheduler.add_argument('--warmup', type=int, default=1000)
+    optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
+    optimizer_scheduler.add_argument('--warmup_proportion', type=int, default=0.1)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
@@ -75,13 +79,14 @@ def parse_args():
 
 def generate_exp_name(args):
     model = f'model_{args.model}'
-    pooling = f'pooling_{args.pooling}'
+    time_pooling = f'pool_time_{args.time_pooling}'
+    layer_pooling = f'layer_{args.layer_pooling}'
+    layer = '_'.join(map(str, args.layer))
     lr = f'lr_{args.lr}'
     task = f'task_{args.task}'
-    exp_name = '_'.join([model, pooling, lr, task, args.note])
+    exp_name = '_'.join([model, time_pooling, lr, task, layer_pooling, layer, args.note])
     return exp_name
 
-# TODO: save args for reproducible exp
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
@@ -108,15 +113,18 @@ if __name__ == "__main__":
                            test_path=args.test_path)
     model = build_model(task=args.task,
                         model=args.model,
-                        pooling=args.pooling,
+                        time_pooling=args.time_pooling,
+                        layer_pooling=args.layer_pooling,
+                        layer=args.layer,
                         new_num_tokens=len(tokenizer),
                         hidden_dropout_prob=args.hidden_dropout_prob,
                         attention_probs_dropout_prob=args.attention_probs_dropout_prob,
                         device=args.device)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
-                                                     eps=(args.beta1, args.beta2),
-                                                     warmup=args.warmup,
+                                                     betas=(args.beta1, args.beta2),
+                                                     eps=args.eps,
+                                                     warmup_proportion=args.warmup_proportion,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
@@ -129,16 +137,20 @@ if __name__ == "__main__":
                             record_every=args.record_every,
                             exp_name=exp_name)
 
+    # TODO: logging here
     logger.info(f'Training logs are in {exp_name}')
     logger.info(f'Preprocessing options')
     logger.info(f'Number of vocab and data size')
     trained_model, summary = trainer.train(args.train_step)
 
-    pred_file_name = f'runs/{exp_name}/prediction.tsv'
-    summary_file_name = f'runs/{exp_name}/summary.txt'
+    dir = f'runs/{exp_name}'
+    pred_file = 'prediction.tsv'
+    summary_file = 'summary.txt'
+    args_file = 'args.bin'
     write_result_to_file(trained_model, trainer.test_iter, tokenizer,
-                         args, pred_file_name)
-    write_summary_to_file(summary, args, summary_file_name)
+                         args, os.path.join(dir, pred_file))
+    write_summary_to_file(summary, args, os.path.join(dir, summary_file))
+    torch.save(args, os.path.join(dir, args_file))
 
     print('\n******************* Training summary *******************')
     print(f'exp_name: {exp_name}', end='\n\n')
