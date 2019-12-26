@@ -51,7 +51,8 @@ def parse_args():
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
-    optimizer_scheduler.add_argument('--warmup', type=int, default=70)
+    optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
+    optimizer_scheduler.add_argument('--warmup_proportion', type=int, default=0.1)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
@@ -117,7 +118,8 @@ if __name__ == "__main__":
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
                                                      betas=(args.beta1, args.beta2),
-                                                     warmup=args.warmup,
+                                                     eps=args.eps,
+                                                     warmup_proportion=args.warmup_proportion,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
