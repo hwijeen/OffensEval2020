@@ -7,6 +7,7 @@ from collections import Counter
 from functools import reduce, partial
 
 import emoji
+from wordsegment import load, segment
 from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer, XLNetTokenizer
 
 resources_dir = '../resources/'
@@ -15,19 +16,22 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
+def textify_emojis(sent):
+    def textify_emojis_token(token):
+        token = token.strip(':')
+        token = re.sub('_', ' ', token)
+        return token
+    tokens = [textify_emojis_token(token) for token in sent.split()]
+    return ' '.join(tokens)
+
 def lower_hashtags(sent):
     return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
-def delete_hashtags(sent): # not used
-    return re.sub('#[\w]+', '', sent)
-
-def _has_cap(token):
-    return token.lower() != token and token.upper() != token
-
-def _all_cap(token):
-    return token.lower() != token and token.upper() == token
-
 def add_capital_signs(text):
+    def _has_cap(token):
+        return token.lower() != token and token.upper() != token
+    def _all_cap(token):
+        return token.lower() != token and token.upper() == token
     exceptions = ['@USER', 'URL']
     tokens = text.split()
     tokens = ['<has_cap> ' + t if _has_cap(t) and t not in exceptions else t for t in tokens]
@@ -65,13 +69,20 @@ def replace_users(sent):
     """Replace actual @ID to @USER"""
     return re.sub('@[\S]+', '@USER', sent)
 
+def segment_hashtags(sent):
+    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #return re.sub('#[\w]+', lambda match: '#' + ' '.join(segment(match.group())), sent) # with '#' in front
+
 def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign, replace_user=False):
+                     add_cap_sign, segment_hashtag, textify_emoji,
+                     replace_user=False):
     funcs = [replace_urls] # default
     if demojize:
         funcs.append(replace_emojis)
     if replace_user: # fine-tune LM data
         funcs.append(replace_users)
+    if textify_emoji:
+        funcs.append(textify_emojis)
     if mention_limit > 0:
         funcs.append(partial(limit_mentions, keep_num=mention_limit))
     if punc_limit > 0:
@@ -80,6 +91,9 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(lower_hashtags)
     if add_cap_sign:
         funcs.append(add_capital_signs)
+    if segment_hashtag:
+        load()
+        funcs.append(segment_hashtags)
     return compose(*funcs)
 
 # TODO: consider using Config
@@ -150,6 +164,3 @@ def load_corpus(train_path='../data/olid-training-v1.0.tsv'):
 
 def get_tokens(counter, min_freq):
     return [token for token, freq in counter.items() if freq >= min_freq]
-
-if __name__ == "__main__":
-    tokenizer = build_tokenizer('bert', 3, 3)
