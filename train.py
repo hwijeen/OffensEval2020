@@ -162,26 +162,22 @@ if __name__ == "__main__":
                             record_every=args.record_every,
                             exp_name=exp_name)
 
-    # TODO: logging here
     logger.info(f'Training logs are in {exp_name}')
-    logger.info(f'Preprocessing options')
-    logger.info(f'Number of vocab and data size')
     trained_model, summary = trainer.train(args.train_step)
 
     best_model_file = os.path.join(trainer.exp_dir, 'best_model.pt')
     pred_file = os.path.join(trainer.exp_dir, 'prediction.tsv')
     summary_file = os.path.join(trainer.exp_dir, 'summary.txt')
     args_file = os.path.join(trainer.exp_dir, 'args.bin')
-    write_model_to_file(trained_model, best_model_file)
+    save_model(trained_model, best_model_file)
+    save_tokenizer(tokenizer, trainer.exp_dir)
     write_pred_to_file(trained_model, trainer.test_iter, tokenizer, pred_file)
     write_args_to_file(args, args_file)
     write_summary_to_file(summary, summary_file)
 
     print('\n******************* Training summary *******************')
     print(summary, end='\n\n')
+    print('Best model, tokenizer, prediction, args, summary are saved')
     print(f'Tensorboard exp_name: {exp_name}')
-    print(f'Best model saved at: {best_model_file}')
-    print(f'Prediction saved at: {pred_file}')
-    print(f'Args saved at: {args_file}')
     print('********************************************************')
 

@@ -113,6 +113,10 @@ def write_summary_to_file(summary, file_name):
 def write_args_to_file(args, file_name):
     torch.save(args, file_name)
 
-def write_model_to_file(model, file_name):
+def save_model(model, file_name):
     torch.save(model.state_dict(), file_name)
 
+def save_tokenizer(tokenizer, dir_name):
+    """This writes `added_tokens.json`, `special_tokens_map.json`,
+    `vocab.txt`, `tokenizer_config.json` to the directory"""
+    tokenizer.save_pretrained(dir_name)

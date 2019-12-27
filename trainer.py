@@ -128,17 +128,18 @@ class Trainer:
                 print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 summary = self.summarize_training()
                 self.early_stopper.delete_checkpoint()
+                self.writer.close()
                 return self.model, summary
 
     def summarize_training(self):
-        summary = f'Best model was found at  step: {self.early_stopper.best_step}\n'
+        summary = f'Best model was found at step: {self.early_stopper.best_step}\n'
         if self.test_iter is not None:
-            test_acc, test_f1 = self.evaluate(self.test_iter)
-            summary += f'Test acc: {test_acc}, Test_f1: {test_f1}'
+            summary += 'On test data:\n'
+            f1, prec, rec, acc = self.evaluate(self.test_iter)
         else:
-            dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-            summary += f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
-        self.writer.close()
+            summary += 'On validation data:\n'
+            f1, prec, rec, acc = self.evaluate(self.val_iter)
+        summary += f'accuracy-{acc:.4f}, precision-{prec:.4f}, recall-{rec:.4f}, f1-{f1:.4f}'
         return summary
 
     def record(self, kind, step, f1, prec, rec, acc, loss=None):
