@@ -38,17 +38,19 @@ class PoolClassifier(CLSClassifier):
         super().__init__(transformer_model, n_class)
         self.time_pooling = time_pooling
         self.layer_pooling = layer_pooling
+        self.layer = layer
         self.hidden_weights = nn.Linear(len(layer), 1)
         self.single_hidden_size = self.model.config.hidden_size * 2 if time_pooling == 'max_avg' \
             else self.model.config.hidden_size
         self.hidden_size = self.single_hidden_size * len(layer) if layer_pooling == 'cat' \
             else self.single_hidden_size
+        self.dropout = nn.Dropout()
         self.out = nn.Linear(self.hidden_size, n_class)
 
     def time_pool(self, x, length):
         pool_time = {'avg': self.avg_pool, 'max': self.max_pool, 'max_avg': self.max_avg_pool}
         pooling_fn = pool_time[self.time_pooling]
-        return pooling_fn(self, x, length)
+        return pooling_fn(x, length)
 
     def layer_pool(self, hiddens):
         pool_layer = {'avg': self.avg_layer, 'max': self.max_layer,
@@ -112,28 +114,32 @@ class PoolClassifier(CLSClassifier):
         except: # xlm, xlnet
             x = self.model(x, attention_mask=x_mask)        # (batch_size, seq_length, hidden_size)
             x = x[0]
+        # x = self.dropout(x)
         x = self.out(x)                                     # (batch_size, NUM_CLASS)
         return x
 
 
 class BertCNN(CLSClassifier):
-    def __init__(self, transformer_model, n_class, channels, window_size, activation, pooling):
+    def __init__(self, transformer_model, n_class, window_size, channels, cnn_pooling, activation, wind_per_layer):
         super().__init__(transformer_model, n_class)
-        self.convs = nn.ModuleList([nn.Conv2d(in_channels=1, out_channels=channels,
-                                    kernel_size=(width, self.model.config.hidden_size), stride=1)
-                                    for width in window_size])
         activation_map = {'relu': nn.ReLU(), 'lrelu': nn.LeakyReLU(), 'glu': nn.GLU()}
-        self.window_per_layer = False
-        if self.window_per_layer:
+        self.wind_per_layer = wind_per_layer
+        if self.wind_per_layer:
             modules = [[f'conv{layer_num}',
                         nn.Conv2d(in_channels=1, out_channels=channels,
                                   kernel_size=(3, self.model.config.hidden_size))]
                        for layer_num in range(1, 13)]
             self.convs = nn.ModuleDict(modules)
+        else:
+            self.convs = nn.ModuleList([nn.Conv2d(in_channels=1, out_channels=channels,
+                                                  kernel_size=(width, self.model.config.hidden_size), stride=1)
+                                        for width in window_size])
         self.activation = activation_map[activation]
-        self.pooling = pooling
+        self.pooling = cnn_pooling
+        self.dropout2d = nn.Dropout2d()
+        self.dropout = nn.Dropout()
         self.hidden_size = 12 * channels * len(window_size)
-        if pooling == 'max_avg':
+        if self.pooling == 'max_avg':
             self.hidden_size *= 2
         self.out = nn.Linear(self.hidden_size, n_class)
 
@@ -147,22 +153,28 @@ class BertCNN(CLSClassifier):
         x = x / length.unsqueeze(-1).float()
         return x
 
-    def single_layer_cnn(self, x, length):
+    def single_conv(self, x, length, conv):
+        x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)  # (batch_size, seq_len, hidden_dim)
+        x = x.unsqueeze(1)          # (batch_size, 1, T, hidden_dim)
+        h = conv(x)                 # (batch_size, C, T', 1)
+        h = h.squeeze(-1)           # (batch_size, C, T')
+        h = self.activation(h)      # (batch_size, C, T')
+        max_h = self.max_pool(h)    # (batch_size, C)
+        avg_h = self.avg_pool(h, length)  # (batch_size, C)
+        if self.pooling == 'avg':
+            out = avg_h
+        elif self.pooling == 'max_avg':
+            out = torch.cat([avg_h, max_h], dim=1)
+        else:
+            out = max_h
+        return out
+
+    def multiple_conv(self, x, length):
         # x : tensor of size                  (batch_size, C, T', 1)
         x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)  # (batch_size, seq_len, hidden_dim)
         conv_outputs = []  # gather convolution outputs here
         for conv in self.convs:
-            h = conv(x.unsqueeze(1))                # (batch_size, C, T', 1)
-            h = h.squeeze(-1)                       # (batch_size, C, T')
-            h = self.activation(h)                  # (batch_size, C, T')
-            max_h = self.max_pool(h)                # (batch_size, C)
-            avg_h = self.avg_pool(h, length)        # (batch_size, C)
-            if self.pooling == 'avg':
-                out = avg_h
-            elif self.pooling == 'max_avg':
-                out = torch.cat([avg_h, max_h], dim=1)
-            else:
-                out = max_h
+            out = self.single_conv(x, length, conv)
             conv_outputs.append(out)
         outputs = torch.cat(conv_outputs, dim=1)
         return outputs
@@ -184,14 +196,21 @@ class BertCNN(CLSClassifier):
         # TODO: clean this hack
         _, _, hidden_states = self.model(x, attention_mask=x_mask)
         # hidden_states : length 13 tuple of tensors (batch_size, max_length, hidden_size)
-        x = self.concat_layer([self.single_layer_cnn(layer, length)
-                               for layer in hidden_states[1:]])
+        if self.wind_per_layer:
+            outputs = []
+            for i, states in enumerate(hidden_states[1:], 1):
+                outputs.append(self.single_conv(states, length, self.convs[f'conv{i}']))
+            x = self.concat_layer(outputs)
+        else:
+            x = self.concat_layer([self.multiple_conv(layer, length)
+                                   for layer in hidden_states[1:]])
+        # x = self.dropout(x)
         x = self.out(x)   # (batch_size, NUM_CLASS)
         return x
 
 # TODO: fix hardcoding of model names(need to be compatible with preprocessing)
 def build_model(task, model, time_pooling, layer_pooling, layer,
-                channels, window_size, activation, cnn_pooling,
+                window_size, channels, cnn_pooling, activation, wind_per_layer,
                 new_num_tokens, device, **kwargs):
     n_class = task_to_n_class[task]
     if model == 'bert':
@@ -216,7 +235,7 @@ def build_model(task, model, time_pooling, layer_pooling, layer,
     if time_pooling == 'cls':
         model = CLSClassifier(base_model, n_class)
     elif time_pooling == 'cnn':
-        model = BertCNN(base_model, n_class, channels, window_size, activation, cnn_pooling)
+        model = BertCNN(base_model, n_class, window_size, channels, cnn_pooling, activation, wind_per_layer)
     else:
         model = PoolClassifier(base_model, n_class, time_pooling, layer_pooling, layer)
     return model.to(device)

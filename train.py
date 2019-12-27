@@ -52,6 +52,7 @@ def parse_args():
     model.add_argument('--channels', type=int, default=1)
     model.add_argument('--cnn_pooling', choices=['avg', 'max', 'max_avg'], default='max')
     model.add_argument('--activation', choices=['relu', 'lrelu', 'glu'], default='lrelu')
+    model.add_argument('--wind_per_layer', action='store_true')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
@@ -98,7 +99,12 @@ def generate_exp_name(args, preprocessing=True, modeling=True, optim_schedule=Tr
         layer = 'Layer:' + ','.join(map(str, args.layer))
         attn_dropout = f'AttnDrop:{args.attention_probs_dropout_prob}'
         hidden_dropout = f'HidDrop:{args.hidden_dropout_prob}'
-        to_include.append('_'.join([model, time_pool, layer_pool, layer, attn_dropout, hidden_dropout]))
+        window_size = f'Wind:' + ','.join(map(str, args.window_size))
+        channels = f'Chan:{args.channels}'
+        cnn_pooling = f'CnnPool:{args.cnn_pooling}'
+        activation = f'Actv:{args.activation}'
+        to_include.append('_'.join([model, time_pool, layer_pool, layer, attn_dropout, hidden_dropout,
+                                    window_size, channels, cnn_pooling, activation]))
 
     if optim_schedule:
         lr = f'Lr:{args.lr}'
@@ -145,10 +151,11 @@ if __name__ == "__main__":
                         time_pooling=args.time_pooling,
                         layer_pooling=args.layer_pooling,
                         layer=args.layer,
-                        channels=args.channels,
                         window_size=args.window_size,
-                        activation=args.activation,
+                        channels=args.channels,
                         cnn_pooling=args.cnn_pooling,
+                        activation=args.activation,
+                        wind_per_layer = args.wind_per_layer,
                         new_num_tokens=len(tokenizer),
                         hidden_dropout_prob=args.hidden_dropout_prob,
                         attention_probs_dropout_prob=args.attention_probs_dropout_prob,
