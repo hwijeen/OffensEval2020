@@ -48,7 +48,7 @@ def calc_prec(pred, gold, labels=None, pos_label=1, average='binary'):
     """
     return precision_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
 
-def calc_recall(pred, gold, labels=None, pos_label=1, average='binary'):
+def calc_rec(pred, gold, labels=None, pos_label=1, average='binary'):
     """
     Calculates recall between prediction and gold label.
     For our task, set average='macro'
