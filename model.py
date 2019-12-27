@@ -130,16 +130,6 @@ class BertCNN(CLSClassifier):
             self.hidden_size *= 2
         self.out = nn.Linear(self.hidden_size, n_class)
 
-    def cnn(self, x, length):
-        x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)  # (batch_size, seq_len, hidden_dim)
-        conv_outputs = []  # gather convolution outputs here
-        for conv in self.convs:
-            x = conv(x.unsqueeze(1))       # (batch_size, C, T', 1)
-            x = x.squeeze(-1)              # (batch_size, C, T')
-            conv_outputs += x
-        outputs = torch.cat(conv_outputs, dim=1)
-        return outputs
-
     def max_pool(self, x):
         x = torch.max(x, dim=-1).values   # (batch_size, C)
         return x
@@ -152,17 +142,23 @@ class BertCNN(CLSClassifier):
 
     def single_layer_cnn(self, x, length):
         # x : tensor of size                  (batch_size, C, T', 1)
-        x = self.cnn(x, length)             # (batch_size, C, T')
-        x = self.activation(x)              # (batch_size, C, T')
-        max_x = self.max_pool(x)            # (batch_size, C)
-        avg_x = self.avg_pool(x, length)    # (batch_size, C)
-        if self.pooling == 'avg':
-            x = avg_x
-        elif self.pooling == 'max_avg':
-            x = torch.cat([avg_x, max_x], dim=1)
-        else:
-            x = max_x
-        return x
+        x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)  # (batch_size, seq_len, hidden_dim)
+        conv_outputs = []  # gather convolution outputs here
+        for conv in self.convs:
+            h = conv(x.unsqueeze(1))                # (batch_size, C, T', 1)
+            h = h.squeeze(-1)                       # (batch_size, C, T')
+            h = self.activation(h)                  # (batch_size, C, T')
+            max_h = self.max_pool(h)                # (batch_size, C)
+            avg_h = self.avg_pool(h, length)        # (batch_size, C)
+            if self.pooling == 'avg':
+                out = avg_h
+            elif self.pooling == 'max_avg':
+                out = torch.cat([avg_h, max_h], dim=1)
+            else:
+                out = max_h
+            conv_outputs.append(out)
+        outputs = torch.cat(conv_outputs, dim=1)
+        return outputs
 
     def concat_layer(self, hiddens):
         return torch.cat(hiddens, dim=1)
@@ -179,15 +175,11 @@ class BertCNN(CLSClassifier):
         """
         x_mask = sequence_mask(length, pad=0, dtype=torch.float)  # (batch_size, max_length)
         # TODO: clean this hack
-        try:  # bert, roberta
-            _, _, hidden_states = self.model(x, attention_mask=x_mask)
-            # hidden_states : length 13 tuple of tensors (batch_size, max_length, hidden_size)
-            x = self.concat_layer([self.single_layer_cnn(layer, length)
-                                   for layer in hidden_states[1:]])
-        except:  # xlm, xlnet
-            x = self.model(x, attention_mask=x_mask)  # (batch_size, seq_length, hidden_size)
-            x = x[0]
-        x = self.out(x)  # (batch_size, NUM_CLASS)
+        _, _, hidden_states = self.model(x, attention_mask=x_mask)
+        # hidden_states : length 13 tuple of tensors (batch_size, max_length, hidden_size)
+        x = self.concat_layer([self.single_layer_cnn(layer, length)
+                               for layer in hidden_states[1:]])
+        x = self.out(x)   # (batch_size, NUM_CLASS)
         return x
 
 # TODO: fix hardcoding of model names(need to be compatible with preprocessing)
