@@ -1,4 +1,5 @@
 import os
+import os
 import argparse
 import logging
 
@@ -8,7 +9,7 @@ from setproctitle import setproctitle
 from dataloading import build_data
 from model import build_model
 from trainer import build_trainer
-from utils import write_result_to_file, write_summary_to_file
+from utils import *
 from optimizer import build_optimizer_scheduler
 from preprocessing import build_preprocess, build_tokenizer
 
@@ -30,12 +31,13 @@ def parse_args():
     data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
 
     preprocess = parser.add_argument_group('Preprocessing options')
-    preprocess.add_argument('--punctuation') # not implemented
     preprocess.add_argument('--demojize', action='store_true')
-    preprocess.add_argument('--emoji_min_freq', type=int, default=0)
     preprocess.add_argument('--lower_hashtag', action='store_true')
-    preprocess.add_argument('--hashtag_min_freq', type=int, default=0)
     preprocess.add_argument('--add_cap_sign', action='store_true')
+    preprocess.add_argument('--segment_hashtag', action='store_true')
+    preprocess.add_argument('--textify_emoji', action='store_true')
+    preprocess.add_argument('--emoji_min_freq', type=int, default=0)
+    preprocess.add_argument('--hashtag_min_freq', type=int, default=0)
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
 
@@ -55,17 +57,18 @@ def parse_args():
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
-    optimizer_scheduler.add_argument('--warmup', type=int, default=70)
+    optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
+    optimizer_scheduler.add_argument('--warmup_proportion', type=float, default=0.1)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
 
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=32)
-    training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--train_step', type=int, default=700)
     training.add_argument('--record_every', type=int, default=10)
-    training.add_argument('--patience', type=int, default=10)
+    training.add_argument('--patience', type=int, default=20)
+    training.add_argument('--cuda', type=int, default=0)
     training.add_argument('--note', type=str, default='')
     parser.add_argument('--debug', action='store_true')
 
@@ -78,7 +81,7 @@ def parse_args():
     return args
 
 def generate_exp_name(args):
-    model = f'model_{args.model}'
+    model = f'model_{args.model}'.replace('/', '_') # for `some/checkpoint`
     time_pooling = f'pool_time_{args.time_pooling}'
     layer_pooling = f'layer_{args.layer_pooling}'
     layer = '_'.join(map(str, args.layer))
@@ -95,7 +98,9 @@ if __name__ == "__main__":
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
                                   lower_hashtag=args.lower_hashtag,
-                                  add_cap_sign=args.add_cap_sign)
+                                  add_cap_sign=args.add_cap_sign,
+                                  segment_hashtag=args.segment_hashtag,
+                                  textify_emoji=args.textify_emoji)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,
@@ -124,8 +129,9 @@ if __name__ == "__main__":
                         device=args.device)
     optimizer, scheduler = build_optimizer_scheduler(model=model,
                                                      lr=args.lr,
-                                                     eps=(args.beta1, args.beta2),
-                                                     warmup=args.warmup,
+                                                     betas=(args.beta1, args.beta2),
+                                                     eps=args.eps,
+                                                     warmup_proportion=args.warmup_proportion,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
@@ -145,16 +151,20 @@ if __name__ == "__main__":
     trained_model, summary = trainer.train(args.train_step)
 
     dir = f'runs/{exp_name}'
-    pred_file = 'prediction.tsv'
-    summary_file = 'summary.txt'
-    args_file = 'args.bin'
-    write_result_to_file(trained_model, trainer.test_iter, tokenizer,
-                         args, os.path.join(dir, pred_file))
-    write_summary_to_file(summary, args, os.path.join(dir, summary_file))
-    torch.save(args, os.path.join(dir, args_file))
+    best_model_file = os.path.join(dir, 'best_model.pt')
+    pred_file = os.path.join(dir, 'prediction.tsv')
+    summary_file = os.path.join(dir, 'summary.txt')
+    args_file = os.path.join(dir, 'args.bin')
+    model_name = write_model_to_file(trained_model, best_model_file)
+    pred_name = write_pred_to_file(trained_model, trainer.test_iter, tokenizer, args, pred_file)
+    args_name = write_args_to_file(args, args_file)
+    summary_name = write_summary_to_file(summary, args, summary_file)
 
     print('\n******************* Training summary *******************')
-    print(f'exp_name: {exp_name}', end='\n\n')
-    print(summary)
+    print(summary, end='\n\n')
+    print(f'Tensorboard exp_name: {exp_name}')
+    print(f'Best model saved at: {model_name}')
+    print(f'Prediction saved at: {model_name}')
+    print(f'Args saved at: {model_name}')
     print('********************************************************')
 

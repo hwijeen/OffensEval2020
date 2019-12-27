@@ -12,26 +12,6 @@ def lines(func):
         return ret
     return wrapper
 
-@lines
-def print_label_vocab(data):
-    print('label dictionary: ', data.train.fields['label'].vocab.stoi)
-
-@lines
-def print_shape(batch):
-    for name in batch.fields:
-        if name == 'NULL':
-            continue
-        if name == 'id':
-            tensor = getattr(batch, name)
-            size = len(tensor)
-        elif name == 'tweet':
-            tensor, lengths = getattr(batch, name)
-            size = tensor.size()
-        elif name == 'label':
-            tensor = getattr(batch, name)
-            size = tensor.size()
-        print(f'batch.{name} is a {type(tensor)} of size {size}')
-
 def sequence_mask(lengths, pad=0, dtype=torch.bool):
     # make a mask matrix corresponding to given length
     # from https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/ops/array_ops.py
@@ -93,7 +73,7 @@ def running_avg_list(x_list, x, alpha=0.9):
         mu = 0
     return running_avg(mu, x, alpha)
 
-def write_result_to_file(model, data_iter, tokenizer, args_, file_name):
+def write_pred_to_file(model, data_iter, tokenizer, args_, file_name):
     model.eval()
     data_iter.repeat = False
     ids, tweets, preds, golds, probs = [], [], [], [], []
@@ -113,23 +93,45 @@ def write_result_to_file(model, data_iter, tokenizer, args_, file_name):
             probs += [' '.join(map(str, p)) for p in prob]
     header = ['id', 'tweet', 'pred', 'gold', 'prob']
     to_write = [header, ids, tweets, preds, golds, probs]
-    write_to_file(file_name, args_, *to_write )
+    file_name = write_to_file(file_name, args_, *to_write )
+    return file_name
+
+def rename_filename(file_name):
+    """Add _ to the filename if filename already exists"""
+    while os.path.exists(file_name):
+        base, ext = os.path.splitext(file_name)
+        file_name = base + '_' + ext
+    return file_name
 
 format_to_sep = {'.tsv': '\t', '.csv': ','}
 def write_to_file(file_name, args_, header, *args):
     basename, format = os.path.splitext(file_name)
     assert format in format_to_sep
     sep = format_to_sep[format]
+    file_name = rename_filename(file_name)
     with open(file_name, 'w') as f:
         print(args_, file=f)
         print(sep.join(header), file=f)
         for line in zip(*args):
             print(sep.join(line), file=f)
+    return file_name
 
 def write_summary_to_file(summary, args, file_name):
+    file_name = rename_filename(file_name)
     with open(file_name, 'w') as f:
         print(args, file=f, end='\n\n')
         print('*' * 60, file=f)
         print(summary, file=f)
         print('*' * 60, file=f)
+    return file_name
+
+def write_args_to_file(args, file_name):
+    file_name = rename_filename(file_name)
+    torch.save(args, file_name)
+    return file_name
+
+def write_model_to_file(model, file_name):
+    file_name = rename_filename(file_name)
+    torch.save(model.state_dict(), file_name)
+    return file_name
 

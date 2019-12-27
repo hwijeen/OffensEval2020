@@ -15,7 +15,7 @@ class EarlyStopping:
         self.patience = patience
         self.delta = delta
         self.mode = mode
-        self.savedir = os.path.join(savedir, 'best_model.pt')
+        self.savedir = os.path.join(savedir, 'best_model_checkpoint.pt')
         self.verbose = verbose
         self.counter = 0
         self.best_step = None
@@ -47,9 +47,13 @@ class EarlyStopping:
         curr_score = -self.best_score if self.mode == 'min' else self.best_score
         if self.verbose:
             print(f'Best score on validation improved ({self.prev_best_score:.6f} -->'
-                  f'{curr_score:.6f}).  Saving model ...')
+                  f'{curr_score:.6f}). Checkpoint model saved.')
         torch.save(self.model.state_dict(), self.savedir)
         self.prev_best_score = curr_score
+
+    def delete_checkpoint(self):
+        if os.path.exists(self.savedir):
+            os.remove(self.savedir)
 
 
 class Trainer:
@@ -90,7 +94,7 @@ class Trainer:
 
             self.optimizer.zero_grad()
             loss.backward()
-            #nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+            nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             self.scheduler.step()
 
@@ -117,18 +121,19 @@ class Trainer:
                     step = train_step # terminates training in the next line
 
             if step == train_step:
-                print(f'Max train step({train_step}) reached, terminating training...')
+                print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 summary = self.summarize_training()
+                self.early_stopper.delete_checkpoint()
                 return self.model, summary
 
     def summarize_training(self):
-        summary = f'Best model found at {self.early_stopper.best_step} step,\n'
+        summary = f'Best model was found at  step: {self.early_stopper.best_step}\n'
         if self.test_iter is not None:
             test_acc, test_f1 = self.evaluate(self.test_iter)
-            summary += f'Test acc:{test_acc}, Test_f1:{test_f1}'
+            summary += f'Test acc: {test_acc}, Test_f1: {test_f1}'
         else:
             dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-            summary+= f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
+            summary += f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
         self.writer.close()
         return summary
 
@@ -153,16 +158,16 @@ class Trainer:
         print(f'At step: {step}')
         print(f'\tTrain loss: {loss.item():.6f}')
         print(f'\tVal loss: {val_loss.item():.6f}')
-        print(f'\tVal acc: {val_acc:.2f}')
-        print(f'\tVal F1: {val_f1:.2f}')
+        print(f'\tVal acc: {val_acc:.4f}')
+        print(f'\tVal F1: {val_f1:.4f}')
         if train_acc is not None:
-            print(f'\tTrain acc: {train_acc:.2f}')
+            print(f'\tTrain acc: {train_acc:.4f}')
         if train_f1 is not None:
-            print(f'\tTrain f1: {train_f1:.2f}')
+            print(f'\tTrain f1: {train_f1:.4f}')
         if test_acc is not None:
-            print(f'\tTest acc: {test_acc:.2f}')
+            print(f'\tTest acc: {test_acc:.4f}')
         if test_f1 is not None:
-            print(f'\tTest f1: {test_f1:.2f}')
+            print(f'\tTest f1: {test_f1:.4f}')
 
     def evaluate(self, data_iter):
         self.model.eval()
