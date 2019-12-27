@@ -41,14 +41,18 @@ def parse_args():
 
     model = parser.add_argument_group('Model options')
     model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
-    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='max_avg')
+    model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg', 'cnn'], default='max_avg')
     model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
+    model.add_argument('--window_size', type=int, default=3)
+    model.add_argument('--channels', type=int, default=1)
+    model.add_argument('--cnn_pooling', choices=['avg', 'max', 'max_avg'], default='max')
+    model.add_argument('--activation', choices=['relu', 'lrelu', 'glu'], default='lrelu')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
-    optimizer_scheduler.add_argument('--lr', type=float, default=0.00005)
+    optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--warmup', type=int, default=70)
@@ -110,6 +114,10 @@ if __name__ == "__main__":
                         time_pooling=args.time_pooling,
                         layer_pooling=args.layer_pooling,
                         layer=args.layer,
+                        channels=args.channels,
+                        window_size=args.window_size,
+                        activation=args.activation,
+                        cnn_pooling=args.cnn_pooling,
                         new_num_tokens=len(tokenizer),
                         hidden_dropout_prob=args.hidden_dropout_prob,
                         attention_probs_dropout_prob=args.attention_probs_dropout_prob,
