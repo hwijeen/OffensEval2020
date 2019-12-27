@@ -123,6 +123,13 @@ class BertCNN(CLSClassifier):
                                     kernel_size=(width, self.model.config.hidden_size), stride=1)
                                     for width in window_size])
         activation_map = {'relu': nn.ReLU(), 'lrelu': nn.LeakyReLU(), 'glu': nn.GLU()}
+        self.window_per_layer = False
+        if self.window_per_layer:
+            modules = [[f'conv{layer_num}',
+                        nn.Conv2d(in_channels=1, out_channels=channels,
+                                  kernel_size=(3, self.model.config.hidden_size))]
+                       for layer_num in range(1, 13)]
+            self.convs = nn.ModuleDict(modules)
         self.activation = activation_map[activation]
         self.pooling = pooling
         self.hidden_size = 12 * channels * len(window_size)
