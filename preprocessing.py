@@ -94,18 +94,15 @@ def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
     if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
         if model == 'bert':
             tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            tokenizer.add_tokens(['@USER'])
         elif model == 'roberta':
             tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-            tokenizer.add_tokens(['@USER'])
         elif model == 'xlm':
             tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-en-2048')
-            tokenizer.add_tokens(['@USER'])
         elif model == 'xlnet':
             tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
-            tokenizer.add_tokens(['@USER'])
         else:
             pass
+        tokenizer.add_tokens(['@USER']) # added in all Transformers models
 
         if emoji_min_freq > 0:
             new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-from utils import calc_acc, calc_f1, rename_expname
+from utils import *
 
 
 # TODO: logging
@@ -99,22 +99,25 @@ class Trainer:
             self.optimizer.step()
             self.scheduler.step()
 
-            # TODO: clean here
             if step % self.record_every == 0:
                 val_loss = self.compute_entire_loss(self.val_iter)
-                val_acc, val_f1 = self.evaluate(self.val_iter)
-                train_acc, train_f1 = self.evaluate(self.train_iter) # optional
-                test_acc, test_f1 = None, None
+                val_metrics = self.evaluate(self.val_iter)
+                train_metrics = self.evaluate(self.train_iter) # optional
+                self.record('val', step, *val_metrics, loss=val_loss)
+                self.record('train', step, *train_metrics, loss=loss)
                 if self.test_iter is not None:
-                    test_acc, test_f1 = self.evaluate(self.test_iter)
-                self.record(step, loss, self.scheduler.get_lr()[0],
-                            val_loss, val_acc, val_f1, train_acc, train_f1,
-                            test_acc, test_f1)
+                    test_loss = self.compute_entire_loss(self.test_iter)
+                    test_metrics = self.evaluate(self.test_iter)
+                    self.record('test', step, *test_metrics, loss=test_loss)
+                self.writer.add_scalar('Learning_rate', self.scheduler.get_lr()[0], step)
 
                 if self.verbose:
-                    self.report(step, loss, val_loss, val_acc, val_f1,
-                                train_acc, train_f1, test_acc, test_f1)
+                    print(f'At step: {step}')
+                    self.report('train', *train_metrics, loss=loss)
+                    self.report('val', *val_metrics, loss=val_loss)
+                    self.report('test', *test_metrics)
 
+                val_f1 = val_metrics[0]
                 self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
                     print(f'Early stopping at {step} step.')
@@ -125,50 +128,34 @@ class Trainer:
                 print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 summary = self.summarize_training()
                 self.early_stopper.delete_checkpoint()
+                self.writer.close()
                 return self.model, summary
 
     def summarize_training(self):
-        summary = f'Best model was found at  step: {self.early_stopper.best_step}\n'
+        summary = f'Best model was found at step: {self.early_stopper.best_step}\n'
         if self.test_iter is not None:
-            test_acc, test_f1 = self.evaluate(self.test_iter)
-            summary += f'Test acc: {test_acc}, Test_f1: {test_f1}'
+            summary += 'On test data:\n'
+            f1, prec, rec, acc = self.evaluate(self.test_iter)
         else:
-            dev_acc, dev_f1 = self.evaluate(self.dev_iter)
-            summary += f'Dev acc:{dev_acc}, Test_f1:{dev_f1}'
-        self.writer.close()
+            summary += 'On validation data:\n'
+            f1, prec, rec, acc = self.evaluate(self.val_iter)
+        summary += f'accuracy-{acc:.4f}, precision-{prec:.4f}, recall-{rec:.4f}, f1-{f1:.4f}'
         return summary
 
-    def record(self, step, loss, lr, val_loss, val_acc, val_f1,
-               train_acc=None, train_f1=None, test_acc=None, test_f1=None):
-        self.writer.add_scalar('Loss/train', loss.item(), step) # batch loss
-        self.writer.add_scalar('Loss/val', val_loss.item(), step)
-        self.writer.add_scalar('lr', lr, step)
-        self.writer.add_scalar('Acc/val', val_acc, step)
-        self.writer.add_scalar('F1/val', val_f1, step)
-        if train_acc is not None:
-            self.writer.add_scalar('Acc/train', train_acc, step)
-        if train_f1 is not None:
-            self.writer.add_scalar('F1/train', train_f1, step)
-        if test_acc is not None:
-            self.writer.add_scalar('Acc/test', test_acc, step)
-        if test_f1 is not None:
-            self.writer.add_scalar('F1/test', test_f1, step)
+    def record(self, kind, step, f1, prec, rec, acc, loss=None):
+        assert kind in {'train', 'val', 'test'}
+        self.writer.add_scalar(f'F1/{kind}', f1, step)
+        self.writer.add_scalar(f'Precision/{kind}', prec, step)
+        self.writer.add_scalar(f'Recall/{kind}', rec, step)
+        self.writer.add_scalar(f'Acc/{kind}', acc, step)
+        if loss is not None:
+            self.writer.add_scalar(f'Loss/{kind}', loss.item(), step) # batch loss
 
-    def report(self, step, loss, val_loss, val_acc, val_f1, train_acc=None,
-               train_f1=None, test_acc=None, test_f1=None):
-        print(f'At step: {step}')
-        print(f'\tTrain loss: {loss.item():.6f}')
-        print(f'\tVal loss: {val_loss.item():.6f}')
-        print(f'\tVal acc: {val_acc:.4f}')
-        print(f'\tVal F1: {val_f1:.4f}')
-        if train_acc is not None:
-            print(f'\tTrain acc: {train_acc:.4f}')
-        if train_f1 is not None:
-            print(f'\tTrain f1: {train_f1:.4f}')
-        if test_acc is not None:
-            print(f'\tTest acc: {test_acc:.4f}')
-        if test_f1 is not None:
-            print(f'\tTest f1: {test_f1:.4f}')
+    def report(self, kind, f1, prec, rec, acc, loss=None):
+        assert kind in {'train', 'val', 'test'}
+        if loss is not None:
+            print(f'\t{kind} loss: {loss.item():.6f}')
+        print(f'\t{kind} F1: {f1:.6f}')
 
     def evaluate(self, data_iter):
         self.model.eval()
@@ -179,10 +166,12 @@ class Trainer:
                 pred = self.model.predict(*batch.tweet)
                 predictions += pred.tolist()
                 golds += batch.label.tolist()
-        acc = calc_acc(predictions, golds)
         f1 = calc_f1(predictions, golds)
+        prec = calc_prec(predictions, golds)
+        rec = calc_rec(predictions, golds)
+        acc = calc_acc(predictions, golds)
         data_iter.repeat = True
-        return acc, f1
+        return f1, prec, rec, acc
 
 
 # TODO: make verbose an option
