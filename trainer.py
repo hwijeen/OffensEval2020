@@ -1,10 +1,11 @@
 import os
 
+
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-from utils import calc_acc, calc_f1
+from utils import calc_acc, calc_f1, rename_expname
 
 
 # TODO: logging
@@ -69,9 +70,9 @@ class Trainer:
         self.max_grad_norm = max_grad_norm
         self.record_every = record_every
         self.criterion = nn.CrossEntropyLoss()
-        exp_dir = os.path.join('runs', exp_name)
-        self.early_stopper = EarlyStopping(model, patience, exp_dir, verbose=verbose)
-        self.writer = SummaryWriter(exp_dir)
+        self.exp_dir = rename_expname(exp_name)
+        self.early_stopper = EarlyStopping(model, patience, self.exp_dir, verbose=verbose)
+        self.writer = SummaryWriter(self.exp_dir)
         self.verbose = verbose
 
     def compute_loss(self, batch):

@@ -58,7 +58,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--beta1', type=float, default=0.9)
     optimizer_scheduler.add_argument('--beta2', type=float, default=0.999)
     optimizer_scheduler.add_argument('--eps', type=float, default=1e-6)
-    optimizer_scheduler.add_argument('--warmup_proportion', type=float, default=0.1)
+    optimizer_scheduler.add_argument('--warmup_ratio', type=float, default=0.1)
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
@@ -80,20 +80,46 @@ def parse_args():
         print('Debug mode!!!!')
     return args
 
-def generate_exp_name(args):
-    model = f'model_{args.model}'.replace('/', '_') # for `some/checkpoint`
-    time_pooling = f'pool_time_{args.time_pooling}'
-    layer_pooling = f'layer_{args.layer_pooling}'
-    layer = '_'.join(map(str, args.layer))
-    lr = f'lr_{args.lr}'
-    task = f'task_{args.task}'
-    exp_name = '_'.join([model, time_pooling, lr, task, layer_pooling, layer, args.note])
-    return exp_name
+def generate_exp_name(args, preprocessing=True, modeling=True, optim_schedule=True, training=False):
+    to_include = [f'{args.task}'.upper()]
+
+    if preprocessing:
+        demojize = f'Demoji:{str(args.demojize)}'
+        lower_hashtag = f'LowHash:{str(args.lower_hashtag)}'
+        add_cap_sign = f'CapSign:{str(args.add_cap_sign)}'
+        segment_hashtag = f'SegHash:{str(args.segment_hashtag)}'
+        textify_emoji = f'TextEmoji:{str(args.textify_emoji)}'
+        to_include.append('_'.join([demojize, lower_hashtag, add_cap_sign, segment_hashtag, textify_emoji]))
+
+    if modeling:
+        model = f'{args.model}'.replace('/', '_').upper() # for `some/checkpoint`
+        time_pool = f'TimePool:{args.time_pooling}'
+        layer_pool = f'LayerPool:{args.layer_pooling}'
+        layer = 'Layer:' + ','.join(map(str, args.layer))
+        attn_dropout = f'AttnDrop:{args.attention_probs_dropout_prob}'
+        hidden_dropout = f'HidDrop:{args.hidden_dropout_prob}'
+        to_include.append('_'.join([model, time_pool, layer_pool, layer, attn_dropout, hidden_dropout]))
+
+    if optim_schedule:
+        lr = f'Lr:{args.lr}'
+        warmup_ratio = f'WarmUp:{args.warmup_ratio}'
+        decay = f'Decay:{args.weight_decay}'
+        layer_decrease = f'LayerDec:{args.layer_decrease}'
+        to_include.append('_'.join([lr, warmup_ratio, decay, layer_decrease]))
+
+    if training:
+        batch = f'Batch:{args.batch_size}'
+        train = f'Train:{args.train_step}'
+        patience = f'Patience:{args.patience}'
+        to_include.append('_'.join([batch, train, patience]))
+
+    to_include.append('_'.join([args.note]))
+    return '_'.join(to_include)
 
 if __name__ == "__main__":
     args = parse_args()
     exp_name = generate_exp_name(args)
-    setproctitle(exp_name)
+    setproctitle(args.note)
     preprocess = build_preprocess(demojize=args.demojize,
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
@@ -131,7 +157,7 @@ if __name__ == "__main__":
                                                      lr=args.lr,
                                                      betas=(args.beta1, args.beta2),
                                                      eps=args.eps,
-                                                     warmup_proportion=args.warmup_proportion,
+                                                     warmup_ratio=args.warmup_ratio,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
                                                      train_step=args.train_step)
@@ -150,21 +176,20 @@ if __name__ == "__main__":
     logger.info(f'Number of vocab and data size')
     trained_model, summary = trainer.train(args.train_step)
 
-    dir = f'runs/{exp_name}'
-    best_model_file = os.path.join(dir, 'best_model.pt')
-    pred_file = os.path.join(dir, 'prediction.tsv')
-    summary_file = os.path.join(dir, 'summary.txt')
-    args_file = os.path.join(dir, 'args.bin')
-    model_name = write_model_to_file(trained_model, best_model_file)
-    pred_name = write_pred_to_file(trained_model, trainer.test_iter, tokenizer, args, pred_file)
-    args_name = write_args_to_file(args, args_file)
-    summary_name = write_summary_to_file(summary, args, summary_file)
+    best_model_file = os.path.join(trainer.exp_dir, 'best_model.pt')
+    pred_file = os.path.join(trainer.exp_dir, 'prediction.tsv')
+    summary_file = os.path.join(trainer.exp_dir, 'summary.txt')
+    args_file = os.path.join(trainer.exp_dir, 'args.bin')
+    write_model_to_file(trained_model, best_model_file)
+    write_pred_to_file(trained_model, trainer.test_iter, tokenizer, pred_file)
+    write_args_to_file(args, args_file)
+    write_summary_to_file(summary, summary_file)
 
     print('\n******************* Training summary *******************')
     print(summary, end='\n\n')
     print(f'Tensorboard exp_name: {exp_name}')
-    print(f'Best model saved at: {model_name}')
-    print(f'Prediction saved at: {model_name}')
-    print(f'Args saved at: {model_name}')
+    print(f'Best model saved at: {best_model_file}')
+    print(f'Prediction saved at: {pred_file}')
+    print(f'Args saved at: {args_file}')
     print('********************************************************')
 

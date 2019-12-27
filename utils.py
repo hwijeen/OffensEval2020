@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import torch
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
@@ -63,17 +64,7 @@ def conf_matrix(pred, gold, labels=None):
     """
     return confusion_matrix(y_true=gold, y_pred=pred, labels=labels)
 
-def running_avg(mu, x, alpha):
-    return mu + alpha * (x - mu)
-
-def running_avg_list(x_list, x, alpha=0.9):
-    try:
-        mu = sum(x_list) / len(x_list)
-    except ZeroDivisionError:
-        mu = 0
-    return running_avg(mu, x, alpha)
-
-def write_pred_to_file(model, data_iter, tokenizer, args_, file_name):
+def write_pred_to_file(model, data_iter, tokenizer, file_name):
     model.eval()
     data_iter.repeat = False
     ids, tweets, preds, golds, probs = [], [], [], [], []
@@ -93,45 +84,35 @@ def write_pred_to_file(model, data_iter, tokenizer, args_, file_name):
             probs += [' '.join(map(str, p)) for p in prob]
     header = ['id', 'tweet', 'pred', 'gold', 'prob']
     to_write = [header, ids, tweets, preds, golds, probs]
-    file_name = write_to_file(file_name, args_, *to_write )
+    file_name = write_to_file(file_name, *to_write )
     return file_name
 
-def rename_filename(file_name):
-    """Add _ to the filename if filename already exists"""
-    while os.path.exists(file_name):
-        base, ext = os.path.splitext(file_name)
-        file_name = base + '_' + ext
-    return file_name
+def rename_expname(exp_name):
+    """Each of multiple runs with same exp_name will be saved in
+    a unique directory, under exp_name."""
+    base_exp_name = os.path.join('runs', exp_name)
+    now = datetime.now().strftime("%m-%d-%H:%M:%S")
+    return os.path.join(base_exp_name, now)
 
 format_to_sep = {'.tsv': '\t', '.csv': ','}
-def write_to_file(file_name, args_, header, *args):
+def write_to_file(file_name, header, *args):
     basename, format = os.path.splitext(file_name)
     assert format in format_to_sep
     sep = format_to_sep[format]
-    file_name = rename_filename(file_name)
     with open(file_name, 'w') as f:
-        print(args_, file=f)
         print(sep.join(header), file=f)
         for line in zip(*args):
             print(sep.join(line), file=f)
-    return file_name
 
-def write_summary_to_file(summary, args, file_name):
-    file_name = rename_filename(file_name)
+def write_summary_to_file(summary, file_name):
     with open(file_name, 'w') as f:
-        print(args, file=f, end='\n\n')
         print('*' * 60, file=f)
         print(summary, file=f)
         print('*' * 60, file=f)
-    return file_name
 
 def write_args_to_file(args, file_name):
-    file_name = rename_filename(file_name)
     torch.save(args, file_name)
-    return file_name
 
 def write_model_to_file(model, file_name):
-    file_name = rename_filename(file_name)
     torch.save(model.state_dict(), file_name)
-    return file_name
 
