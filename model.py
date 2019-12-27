@@ -118,34 +118,39 @@ class PoolClassifier(CLSClassifier):
 
 class BertCNN(CLSClassifier):
     def __init__(self, transformer_model, n_class, channels, window_size, activation, pooling):
-        activation_map = {'relu': nn.ReLU(), 'lrelu': nn.LeakyReLU(), 'glu': nn.GLU()}
         super().__init__(transformer_model, n_class)
-        self.conv = nn.Conv2d(in_channels=1, out_channels=channels,
-                              kernel_size=(window_size, self.model.config.hidden_size), stride=1)
+        self.convs = nn.ModuleList([nn.Conv2d(in_channels=1, out_channels=channels,
+                                    kernel_size=(width, self.model.config.hidden_size), stride=1)
+                                    for width in window_size])
+        activation_map = {'relu': nn.ReLU(), 'lrelu': nn.LeakyReLU(), 'glu': nn.GLU()}
         self.activation = activation_map[activation]
         self.pooling = pooling
-        self.hidden_size = 12 * channels * 2 if pooling == 'max_avg' else 12 * channels
+        self.hidden_size = 12 * channels * len(window_size)
+        if pooling == 'max_avg':
+            self.hidden_size *= 2
         self.out = nn.Linear(self.hidden_size, n_class)
 
     def cnn(self, x, length):
         x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)  # (batch_size, seq_len, hidden_dim)
-        x = self.conv(x.unsqueeze(1))       # (batch_size, C, T', 1)
-        # TODO : consider multiple channels
-        x = x.squeeze(-1)                     # (batch_size, C, T')
-        return x
+        conv_outputs = []  # gather convolution outputs here
+        for conv in self.convs:
+            x = conv(x.unsqueeze(1))       # (batch_size, C, T', 1)
+            x = x.squeeze(-1)              # (batch_size, C, T')
+            conv_outputs += x
+        outputs = torch.cat(conv_outputs, dim=1)
+        return outputs
 
     def max_pool(self, x):
         x = torch.max(x, dim=-1).values   # (batch_size, C)
         return x
 
     def avg_pool(self, x, length):
-        #x = x.masked_fill(sequence_mask(length, pad=1).unsqueeze(-1), 0.0)
         x = torch.sum(x, dim=-1)  # (batch_size, C, 1)
         x = x.squeeze()           # (batch_size, C)
         x = x / length.unsqueeze(-1).float()
         return x
 
-    def conv_single_layer(self, x, length):
+    def single_layer_cnn(self, x, length):
         # x : tensor of size                  (batch_size, C, T', 1)
         x = self.cnn(x, length)             # (batch_size, C, T')
         x = self.activation(x)              # (batch_size, C, T')
@@ -177,7 +182,7 @@ class BertCNN(CLSClassifier):
         try:  # bert, roberta
             _, _, hidden_states = self.model(x, attention_mask=x_mask)
             # hidden_states : length 13 tuple of tensors (batch_size, max_length, hidden_size)
-            x = self.concat_layer([self.conv_single_layer(layer, length)
+            x = self.concat_layer([self.single_layer_cnn(layer, length)
                                    for layer in hidden_states[1:]])
         except:  # xlm, xlnet
             x = self.model(x, attention_mask=x_mask)  # (batch_size, seq_length, hidden_size)

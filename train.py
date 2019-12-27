@@ -48,7 +48,7 @@ def parse_args():
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
     model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
-    model.add_argument('--window_size', type=int, default=3)
+    model.add_argument('--window_size', type=int, nargs='+', default=[3])
     model.add_argument('--channels', type=int, default=1)
     model.add_argument('--cnn_pooling', choices=['avg', 'max', 'max_avg'], default='max')
     model.add_argument('--activation', choices=['relu', 'lrelu', 'glu'], default='lrelu')
