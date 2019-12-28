@@ -17,7 +17,7 @@ For exhaustive list of arguments, read `train.py`.
 ```bash
 python train.py --task a \
 --demojize --lower_hashtag --segment_hashtag --textify_emoji --add_cap_sign \
---emoji_min_freq 0 --hashtag_min_freq 0 --mention_limit 3 --punc_limit 3 \
+--mention_limit 3 --punc_limit 3 \
 --model bert --time_pooling max_avg --layer 12 \
 --attention_probs_dropout_prob 0.1 --hidden_dropout_prob 0.1 \
 --lr 0.00002 --weight_decay 0.0 --layer_decrease 1.0 --warmup_ratio 0.1 \

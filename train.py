@@ -35,8 +35,6 @@ def parse_args():
     preprocess.add_argument('--segment_hashtag', action='store_true')
     preprocess.add_argument('--textify_emoji', action='store_true')
     preprocess.add_argument('--add_cap_sign', action='store_true')
-    preprocess.add_argument('--emoji_min_freq', type=int, default=0)
-    preprocess.add_argument('--hashtag_min_freq', type=int, default=0)
     preprocess.add_argument('--mention_limit', type=int, default=3)
     preprocess.add_argument('--punc_limit', type=int, default=3)
 
@@ -123,9 +121,9 @@ if __name__ == "__main__":
                                   segment_hashtag=args.segment_hashtag,
                                   add_cap_sign=args.add_cap_sign)
     tokenizer = build_tokenizer(model=args.model,
-                                emoji_min_freq=args.emoji_min_freq,
-                                hashtag_min_freq=args.hashtag_min_freq,
                                 add_cap_sign=args.add_cap_sign,
+                                textify_emoji=args.textify_emoji,
+                                segment_hashtag=args.segment_hashtag,
                                 preprocess=preprocess)
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,

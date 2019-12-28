@@ -1,6 +1,5 @@
 import os
 
-
 import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
@@ -130,7 +129,7 @@ class Trainer:
                 self.writer.add_text('Summary', summary)
                 self.early_stopper.delete_checkpoint()
                 self.writer.close()
-                return self.model, summar
+                return self.model, summary
 
     def summarize_training(self):
         summary = f'Best model was found at step: {self.early_stopper.best_step}\n'

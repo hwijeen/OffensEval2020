@@ -1,16 +1,11 @@
-import os
-from pandas import read_csv
-import pickle
 import re
 import string
-from collections import Counter
 from functools import reduce, partial
 
 import emoji
 from wordsegment import load, segment
 from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer, XLNetTokenizer
 
-resources_dir = '../resources/'
 
 def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
@@ -70,6 +65,9 @@ def replace_urls(sent):
 
 def build_preprocess(demojize, textify_emoji, mention_limit, punc_limit, lower_hashtag,
                      segment_hashtag, add_cap_sign):
+    if textify_emoji and not demojize:
+        raise Exception("textify_emoji is meaningless without demojize")
+
     funcs = [replace_urls] # default
     if demojize:
         funcs.append(replace_emojis)
@@ -90,63 +88,27 @@ def build_preprocess(demojize, textify_emoji, mention_limit, punc_limit, lower_h
 
 # TODO: consider using Config
 # TODO: Fix hard code of model names(also in build_model)
-# TODO: delete emoji_min_freq and hashtag_min_freq
-def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
-                    preprocess):
-    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
-        if model == 'bert':
-            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        elif model == 'roberta':
-            tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-        elif model == 'xlm':
-            tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-en-2048')
-        elif model == 'xlnet':
-            tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
-        else:
-            pass
-        tokenizer.add_tokens(['@USER']) # added in all Transformers models
+def build_tokenizer(model, add_cap_sign, textify_emoji, segment_hashtag, preprocess):
+    tokenizer_dict = {'bert': BertTokenizer.from_pretrained('bert-base-uncased')}
+                      #'roberta': RobertaTokenizer.from_pretrained('roberta-base'),
+                      #'xlm': XLMTokenizer.from_pretrained('xlm-mlm-en-2048'),
+                      #'xlnet': XLNetTokenizer.from_pretrained('xlnet-base-cased')}
+    if model in tokenizer_dict:
+        tokenizer = tokenizer_dict[model]
+        tokenizer.add_tokens(['@USER']) # All Transformers models
 
-        if emoji_min_freq > 0:
-            new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
-            tokenizer.add_tokens(new_tokens)
-        if hashtag_min_freq > 0:
-            new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
-            tokenizer.add_tokens(new_tokens)
         if add_cap_sign:
             tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
+        if textify_emoji:
+            tokenizer.add_tokens(['<emoji>', '</emoji>'])
+        if segment_hashtag:
+            tokenizer.add_tokens(['<hashtag>', '</hashtag>'])
+
         if preprocess is not None:
             tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
 
+    # TODO: when not using bert
     else:
-        # TODO: when not using bert
         pass
+
     return tokenizer
-
-def build_freq_dict(train_corpus, which):
-    freq_dict = count(train_corpus, which)
-    with open(resources_dir + f'{which}.count', 'wb') as f:
-        pickle.dump(freq_dict, f)
-    print(f"Built frequency dict {which}.count")
-
-def count(text, which):
-    regex = emoji.get_emoji_regexp() if which == 'emoji' else re.compile('#[\w]+')
-    tokens = regex.findall(text.lower())
-    tokens = list(map(emoji.demojize, tokens)) if which == 'emoji' else tokens
-    counts = Counter(tokens)
-    return counts
-
-def load_freq_dict(which):
-    fpath = os.path.join(resources_dir, f"{which}.count")
-    if not os.path.exists(fpath):
-        train_corpus = load_corpus()
-        build_freq_dict(train_corpus, which)
-    with open(fpath, 'rb') as f:
-        freq_dict = pickle.load(f)
-    return freq_dict
-
-def load_corpus(train_path='../data/olid-training-v1.0.tsv'):
-    df = read_csv(train_path, sep='\t', usecols=['tweet'])
-    return ' '.join(df['tweet'])
-
-def get_tokens(counter, min_freq):
-    return [token for token, freq in counter.items() if freq >= min_freq]
