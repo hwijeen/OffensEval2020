@@ -16,17 +16,6 @@ def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
 
-def textify_emojis(sent):
-    def textify_emojis_token(token):
-        token = token.strip(':')
-        token = re.sub('_', ' ', token)
-        return token
-    tokens = [textify_emojis_token(token) for token in sent.split()]
-    return ' '.join(tokens)
-
-def lower_hashtags(sent):
-    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
-
 def add_capital_signs(text):
     def _has_cap(token):
         return token.lower() != token and token.upper() != token
@@ -57,18 +46,30 @@ def limit_mentions(sent, keep_num):
     return _limit_pattern(sent, '@USER', keep_num)
 
 def replace_emojis(sent):
-    """ Replace emoticon with predefined :text:. """
+    """ e.g. smiling emoticon -> :smiley_face: """
     return emoji.demojize(sent)
+
+def textify_emojis(sent):
+    """ e.g. :smiley_face: -> smiley face"""
+    return re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    #ret = re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    #return '<emoji> ' + ret + ' </emoji>'
+
+def lower_hashtags(sent):
+    """ e.g.  #MAGA -> #maga """
+    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
+
+def segment_hashtags(sent):
+    """ e.g. #MakeAmericaGreatAgain -> make america great again"""
+    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #ret = re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #return '<hashtag> ' + ret + ' </hashtag>'
 
 def replace_urls(sent):
     return sent.replace('URL', 'http')
 
-def segment_hashtags(sent):
-    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
-    #return re.sub('#[\w]+', lambda match: '#' + ' '.join(segment(match.group())), sent) # with '#' in front
-
-def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign, segment_hashtag, textify_emoji):
+def build_preprocess(demojize, textify_emoji, mention_limit, punc_limit, lower_hashtag,
+                     segment_hashtag, add_cap_sign):
     funcs = [replace_urls] # default
     if demojize:
         funcs.append(replace_emojis)
@@ -80,15 +81,16 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(partial(limit_punctuations, keep_num=punc_limit))
     if lower_hashtag:
         funcs.append(lower_hashtags)
-    if add_cap_sign:
-        funcs.append(add_capital_signs)
     if segment_hashtag:
         load()
         funcs.append(segment_hashtags)
+    if add_cap_sign:
+        funcs.append(add_capital_signs)
     return compose(*funcs)
 
 # TODO: consider using Config
 # TODO: Fix hard code of model names(also in build_model)
+# TODO: delete emoji_min_freq and hashtag_min_freq
 def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
                     preprocess):
     if model in {'bert', 'roberta', 'xlm', 'xlnet'}:

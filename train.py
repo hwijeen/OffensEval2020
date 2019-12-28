@@ -1,5 +1,4 @@
 import os
-import os
 import argparse
 import logging
 
@@ -117,12 +116,12 @@ if __name__ == "__main__":
     exp_name = generate_exp_name(args)
     setproctitle(args.note)
     preprocess = build_preprocess(demojize=args.demojize,
+                                  textify_emoji=args.textify_emoji,
                                   mention_limit=args.mention_limit,
                                   punc_limit=args.punc_limit,
                                   lower_hashtag=args.lower_hashtag,
-                                  add_cap_sign=args.add_cap_sign,
                                   segment_hashtag=args.segment_hashtag,
-                                  textify_emoji=args.textify_emoji)
+                                  add_cap_sign=args.add_cap_sign)
     tokenizer = build_tokenizer(model=args.model,
                                 emoji_min_freq=args.emoji_min_freq,
                                 hashtag_min_freq=args.hashtag_min_freq,
