@@ -213,10 +213,10 @@ def train(args, train_dataset, model, tokenizer, note):
     #scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
     #                                            num_training_steps=t_total)
     train_step = (len(train_dataset) / args.train_batch_size) * args.num_train_epochs
-    warmup_steps = args.warmup_steps_ratio * train_step
     optimizer, scheduler = build_optimizer_scheduler(model, args.learning_rate,
+                                                     args.betas,
                                                      args.adam_epsilon,
-                                                     warmup_steps,
+                                                     args.warmup_steps_ratio,
                                                      args.weight_decay,
                                                      args.layer_decrease,
                                                      train_step)
@@ -471,6 +471,8 @@ def main():
                         help="The initial learning rate for Adam.")
     parser.add_argument("--weight_decay", default=0.0, type=float,
                         help="Weight deay if we apply some.")
+    parser.add_argument('--beta1', type=float, default=0.9)
+    parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument("--adam_epsilon", default=1e-6, type=float,
                         help="Epsilon for Adam optimizer.")
     parser.add_argument("--max_grad_norm", default=1.0, type=float,
