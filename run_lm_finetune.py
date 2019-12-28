@@ -214,7 +214,7 @@ def train(args, train_dataset, model, tokenizer, note):
     #                                            num_training_steps=t_total)
     train_step = (len(train_dataset) / args.train_batch_size) * args.num_train_epochs
     optimizer, scheduler = build_optimizer_scheduler(model, args.learning_rate,
-                                                     args.betas,
+                                                     (args.beta1, args.beta2),
                                                      args.adam_epsilon,
                                                      args.warmup_steps_ratio,
                                                      args.weight_decay,
