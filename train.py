@@ -51,7 +51,7 @@ def parse_args():
     model.add_argument('--window_size', type=int, nargs='+', default=[3])
     model.add_argument('--channels', type=int, default=1)
     model.add_argument('--cnn_pooling', choices=['avg', 'max', 'max_avg'], default='max')
-    model.add_argument('--activation', choices=['relu', 'lrelu', 'glu'], default='lrelu')
+    model.add_argument('--activation', choices=['relu', 'lrelu', 'glu'], default='relu')
     model.add_argument('--wind_per_layer', action='store_true')
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
