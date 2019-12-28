@@ -127,6 +127,7 @@ class Trainer:
             if step == train_step:
                 print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 summary = self.summarize_training()
+                self.writer.add_text('Summary', summary)
                 self.early_stopper.delete_checkpoint()
                 self.writer.close()
                 return self.model, summary
