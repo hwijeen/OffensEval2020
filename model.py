@@ -112,30 +112,19 @@ class PoolClassifier(CLSClassifier):
 # TODO: fix hardcoding of model names(need to be compatible with preprocessing)
 def build_model(task, model, time_pooling, layer_pooling, layer,
                 new_num_tokens, device, **kwargs):
-    n_class = task_to_n_class[task]
+    model_dict = {'bert': BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True, **kwargs)}
+                  #'roberta': RobertaModel.from_pretrained('roberta-base', output_hidden_states=True, **kwargs),
+                  #'xlm': XLMModel.from_pretrained('xlm-mlm-en-2048'),
+                  #'xlnet': XLNetModel.from_pretrained('xlnet-base-cased')}
     if 'checkpoint' in model:
         base_model = BertModel.from_pretrained(model, **kwargs)
-        base_model.resize_token_embeddings(new_num_tokens)
-
-    if model == 'bert':
-        base_model = BertModel.from_pretrained('bert-base-uncased',
-                                               output_hidden_states=True,
-                                               **kwargs)
-        base_model.resize_token_embeddings(new_num_tokens)
-    elif model == 'roberta':
-        base_model = RobertaModel.from_pretrained('roberta-base',
-                                                  output_hidden_states=True,
-                                                  **kwargs)
-        base_model.resize_token_embeddings(new_num_tokens)
-    elif model =='xlm':
-        base_model = XLMModel.from_pretrained('xlm-mlm-en-2048')
-        base_model.resize_token_embeddings(new_num_tokens)
-    elif model == 'xlnet':
-        base_model = XLNetModel.from_pretrained('xlnet-base-cased')
-        base_model.resize_token_embeddings(new_num_tokens)
+    elif model in model_dict:
+        base_model = model_dict[model]
+        base_model.resize_token_embeddings(new_num_tokens) # All transformers models
     else:
         pass
 
+    n_class = task_to_n_class[task]
     if time_pooling == 'cls':
         model = CLSClassifier(base_model, n_class)
     else:

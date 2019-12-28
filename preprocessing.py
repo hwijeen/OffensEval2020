@@ -1,31 +1,15 @@
-import os
-from pandas import read_csv
-import pickle
 import re
 import string
-from collections import Counter
 from functools import reduce, partial
 
 import emoji
 from wordsegment import load, segment
 from transformers import BertTokenizer, RobertaTokenizer, XLMTokenizer, XLNetTokenizer
 
-resources_dir = '../resources/'
 
 def compose(*funcs):
     """" Compose functions so that they are applied in chain. """
     return reduce(lambda f, g: lambda x: f(g(x)), funcs[::-1])
-
-def textify_emojis(sent):
-    def textify_emojis_token(token):
-        token = token.strip(':')
-        token = re.sub('_', ' ', token)
-        return token
-    tokens = [textify_emojis_token(token) for token in sent.split()]
-    return ' '.join(tokens)
-
-def lower_hashtags(sent):
-    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
 
 def add_capital_signs(text):
     def _has_cap(token):
@@ -57,8 +41,24 @@ def limit_mentions(sent, keep_num):
     return _limit_pattern(sent, '@USER', keep_num)
 
 def replace_emojis(sent):
-    """ Replace emoticon with predefined :text:. """
+    """ e.g. smiling emoticon -> :smiley_face: """
     return emoji.demojize(sent)
+
+def textify_emojis(sent):
+    """ e.g. :smiley_face: -> smiley face"""
+    return re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    #ret = re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    #return '<emoji> ' + ret + ' </emoji>'
+
+def lower_hashtags(sent):
+    """ e.g.  #MAGA -> #maga """
+    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
+
+def segment_hashtags(sent):
+    """ e.g. #MakeAmericaGreatAgain -> make america great again"""
+    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #ret = re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #return '<hashtag> ' + ret + ' </hashtag>'
 
 def replace_urls(sent):
     """Replace actual URL to `http`"""
@@ -69,18 +69,17 @@ def replace_users(sent):
     """Replace actual @ID to @USER"""
     return re.sub('@[\S]+', '@USER', sent)
 
-def segment_hashtags(sent):
-    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
-    #return re.sub('#[\w]+', lambda match: '#' + ' '.join(segment(match.group())), sent) # with '#' in front
+def build_preprocess(demojize, textify_emoji, mention_limit, punc_limit, lower_hashtag,
+                     segment_hashtag, add_cap_sign, replace_user=False):
+    if textify_emoji and not demojize:
+        raise Exception("textify_emoji is meaningless without demojize")
 
-def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
-                     add_cap_sign, segment_hashtag, textify_emoji,
-                     replace_user=False):
+
     funcs = [replace_urls] # default
-    if demojize:
-        funcs.append(replace_emojis)
     if replace_user: # fine-tune LM data
         funcs.append(replace_users)
+    if demojize:
+        funcs.append(replace_emojis)
     if textify_emoji:
         funcs.append(textify_emojis)
     if mention_limit > 0:
@@ -89,78 +88,39 @@ def build_preprocess(demojize, mention_limit, punc_limit, lower_hashtag,
         funcs.append(partial(limit_punctuations, keep_num=punc_limit))
     if lower_hashtag:
         funcs.append(lower_hashtags)
-    if add_cap_sign:
-        funcs.append(add_capital_signs)
     if segment_hashtag:
         load()
         funcs.append(segment_hashtags)
+    if add_cap_sign:
+        funcs.append(add_capital_signs)
     return compose(*funcs)
 
 # TODO: consider using Config
 # TODO: Fix hard code of model names(also in build_model)
-def build_tokenizer(model, emoji_min_freq, hashtag_min_freq, add_cap_sign,
-                    preprocess):
+def build_tokenizer(model, add_cap_sign, textify_emoji, segment_hashtag, preprocess):
+    tokenizer_dict = {'bert': BertTokenizer.from_pretrained('bert-base-uncased')}
+                      #'roberta': RobertaTokenizer.from_pretrained('roberta-base'),
+                      #'xlm': XLMTokenizer.from_pretrained('xlm-mlm-en-2048'),
+                      #'xlnet': XLNetTokenizer.from_pretrained('xlnet-base-cased')}
+
     if 'checkpoint' in model:
         tokenizer = BertTokenizer.from_pretrained(model)
+    elif model in tokenizer_dict:
+        tokenizer = tokenizer_dict[model]
+        tokenizer.add_tokens(['@USER']) # All Transformers models
 
-    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
-        if model == 'bert':
-            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            tokenizer.add_tokens(['@USER'])
-        elif model == 'roberta':
-            tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
-            tokenizer.add_tokens(['@USER'])
-        elif model == 'xlm':
-            tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-en-2048')
-            tokenizer.add_tokens(['@USER'])
-        elif model == 'xlnet':
-            tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
-            tokenizer.add_tokens(['@USER'])
-        else:
-            pass
-
-    if emoji_min_freq > 0:
-        new_tokens = get_tokens(load_freq_dict('emoji'), emoji_min_freq)
-        tokenizer.add_tokens(new_tokens)
-    if hashtag_min_freq > 0:
-        new_tokens = get_tokens(load_freq_dict('hashtag'), hashtag_min_freq)
-        tokenizer.add_tokens(new_tokens)
-    if add_cap_sign:
-        tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
-
-    #else:
-    #    # TODO: when not using bert
-    #    pass
+        if add_cap_sign:
+            tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
+        if textify_emoji:
+            tokenizer.add_tokens(['<emoji>', '</emoji>'])
+        if segment_hashtag:
+            tokenizer.add_tokens(['<hashtag>', '</hashtag>'])
 
     if preprocess is not None:
         tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
+
+    # TODO: when not using bert
+    else:
+        pass
+
     return tokenizer
-
-def build_freq_dict(train_corpus, which):
-    freq_dict = count(train_corpus, which)
-    with open(resources_dir + f'{which}.count', 'wb') as f:
-        pickle.dump(freq_dict, f)
-    print(f"Built frequency dict {which}.count")
-
-def count(text, which):
-    regex = emoji.get_emoji_regexp() if which == 'emoji' else re.compile('#[\w]+')
-    tokens = regex.findall(text.lower())
-    tokens = list(map(emoji.demojize, tokens)) if which == 'emoji' else tokens
-    counts = Counter(tokens)
-    return counts
-
-def load_freq_dict(which):
-    fpath = os.path.join(resources_dir, f"{which}.count")
-    if not os.path.exists(fpath):
-        train_corpus = load_corpus()
-        build_freq_dict(train_corpus, which)
-    with open(fpath, 'rb') as f:
-        freq_dict = pickle.load(f)
-    return freq_dict
-
-def load_corpus(train_path='../data/olid-training-v1.0.tsv'):
-    df = read_csv(train_path, sep='\t', usecols=['tweet'])
-    return ' '.join(df['tweet'])
-
-def get_tokens(counter, min_freq):
-    return [token for token, freq in counter.items() if freq >= min_freq]
