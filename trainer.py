@@ -133,12 +133,12 @@ class Trainer:
 
     def summarize_training(self):
         summary = f'Best model was found at step: {self.early_stopper.best_step}\n'
+        summary += 'On validation data:\n'
+        f1, prec, rec, acc = self.evaluate(self.val_iter)
+        summary += f'accuracy-{acc:.4f}, precision-{prec:.4f}, recall-{rec:.4f}, f1-{f1:.4f}\n'
         if self.test_iter is not None:
             summary += 'On test data:\n'
             f1, prec, rec, acc = self.evaluate(self.test_iter)
-        else:
-            summary += 'On validation data:\n'
-            f1, prec, rec, acc = self.evaluate(self.val_iter)
         summary += f'accuracy-{acc:.4f}, precision-{prec:.4f}, recall-{rec:.4f}, f1-{f1:.4f}'
         return summary
 
