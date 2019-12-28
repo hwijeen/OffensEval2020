@@ -213,7 +213,7 @@ def train(args, train_dataset, model, tokenizer, note):
     #scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
     #                                            num_training_steps=t_total)
     train_step = (len(train_dataset) / args.train_batch_size) * args.num_train_epochs
-    warmup_steps = args.warmup_steps_portion * train_step
+    warmup_steps = args.warmup_steps_ratio * train_step
     optimizer, scheduler = build_optimizer_scheduler(model, args.learning_rate,
                                                      args.adam_epsilon,
                                                      warmup_steps,
@@ -479,7 +479,7 @@ def main():
                         help="Total number of training epochs to perform.")
     parser.add_argument("--max_steps", default=-1, type=int,
                         help="If > 0: set total number of training steps to perform. Override num_train_epochs.")
-    parser.add_argument("--warmup_steps_portion", default=0.0, type=float,
+    parser.add_argument("--warmup_steps_ratio", default=0.0, type=float,
                         help="How many percentage of train step for linear warmup.")
 
     parser.add_argument('--logging_steps', type=int, default=50,
