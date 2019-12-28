@@ -119,17 +119,20 @@ class Trainer:
                 val_f1 = val_metrics[0]
                 self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
-                    print(f'Early stopping at {step} step.')
-                    self.model.load_state_dict(torch.load(self.early_stopper.savedir))
-                    step = train_step # terminates training in the next line
+                    print(f'..... Early stopping patience reached at step {step}, terminating training .....')
+                    return self.finish_training()
 
             if step == train_step:
                 print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
-                summary = self.summarize_training()
-                self.writer.add_text('Summary', summary)
-                self.early_stopper.delete_checkpoint()
-                self.writer.close()
-                return self.model, summary
+                return self.finish_training()
+
+    def finish_training(self):
+        self.model.load_state_dict(torch.load(self.early_stopper.savedir))
+        summary = self.summarize_training()
+        self.writer.add_text('Summary', summary)
+        self.early_stopper.delete_checkpoint()
+        self.writer.close()
+        return self.model, summary
 
     def summarize_training(self):
         summary = f'Best model was found at step: {self.early_stopper.best_step}\n'
