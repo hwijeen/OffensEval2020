@@ -46,7 +46,7 @@ def replace_emojis(sent):
 
 def textify_emojis(sent):
     """ e.g. :smiley_face: -> smiley face"""
-    return re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    return re.sub(':[\S]+:', lambda match: match.group().replace('_', ' ').replace('-', ' ').replace(':', ''), sent)
     #ret = re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
     #return '<emoji> ' + ret + ' </emoji>'
 
