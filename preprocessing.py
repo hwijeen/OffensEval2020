@@ -52,11 +52,11 @@ def textify_emojis(sent):
 
 def lower_hashtags(sent):
     """ e.g.  #MAGA -> #maga """
-    return re.sub('#[\w]+', lambda match: match.group().lower(), sent)
+    return re.sub('#[\S]+', lambda match: match.group().lower(), sent)
 
 def segment_hashtags(sent):
     """ e.g. #MakeAmericaGreatAgain -> make america great again"""
-    return re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    return re.sub('#[\S]+', lambda match: ' '.join(segment(match.group())), sent)
     #ret = re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
     #return '<hashtag> ' + ret + ' </hashtag>'
 
@@ -103,6 +103,8 @@ def build_tokenizer(model, add_cap_sign, textify_emoji, segment_hashtag, preproc
             tokenizer.add_tokens(['<emoji>', '</emoji>'])
         if segment_hashtag:
             tokenizer.add_tokens(['<hashtag>', '</hashtag>'])
+
+        #tokenizer.add_tokens([w.strip() for w in open('../resources/log_odds.txt').readlines()])
 
         if preprocess is not None:
             tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
