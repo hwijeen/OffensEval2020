@@ -44,7 +44,7 @@ def parse_args():
     model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
     model.add_argument('--attention_probs_dropout_prob', type=float, default=0.1)
-    model.add_argument('--hidden_dropout_prob', type=float, default=0.1)
+    model.add_argument('--hidden_dropout_prob', type=float, default=0.3)
 
     optimizer_scheduler = parser.add_argument_group('Optimizer and scheduler options')
     optimizer_scheduler.add_argument('--lr', type=float, default=0.00002)
