@@ -55,6 +55,7 @@ def parse_args():
     optimizer_scheduler.add_argument('--max_grad_norm', type=float, default=1.0)
     optimizer_scheduler.add_argument('--weight_decay', type=float, default=0.0)
     optimizer_scheduler.add_argument('--layer_decrease', type=float, default=1.0)
+    optimizer_scheduler.add_argument('--freeze_upto', type=int, default=-1)
 
     training = parser.add_argument_group('Training options')
     training.add_argument('--batch_size', type=int, default=32)
@@ -149,6 +150,7 @@ if __name__ == "__main__":
                                                      warmup_ratio=args.warmup_ratio,
                                                      weight_decay=args.weight_decay,
                                                      layer_decrease=args.layer_decrease,
+                                                     freeze_upto=args.freeze_upto,
                                                      train_step=args.train_step)
     trainer = build_trainer(model=model,
                             data=olid_data,

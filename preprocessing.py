@@ -47,7 +47,7 @@ def replace_emojis(sent):
 def textify_emojis(sent):
     """ e.g. :smiley_face: -> smiley face"""
     return re.sub(':[\S]+:', lambda match: match.group().replace('_', ' ').replace('-', ' ').replace(':', ''), sent)
-    #ret = re.sub(':[\w]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
+    #ret = re.sub(':[\S]+:', lambda match: match.group().replace('_', ' ').replace(':', ''), sent)
     #return '<emoji> ' + ret + ' </emoji>'
 
 def lower_hashtags(sent):
@@ -57,7 +57,7 @@ def lower_hashtags(sent):
 def segment_hashtags(sent):
     """ e.g. #MakeAmericaGreatAgain -> make america great again"""
     return re.sub('#[\S]+', lambda match: ' '.join(segment(match.group())), sent)
-    #ret = re.sub('#[\w]+', lambda match: ' '.join(segment(match.group())), sent)
+    #ret = re.sub('#[\S]+', lambda match: ' '.join(segment(match.group())), sent)
     #return '<hashtag> ' + ret + ' </hashtag>'
 
 def replace_urls(sent):
@@ -106,6 +106,7 @@ def build_tokenizer(model, add_cap_sign, textify_emoji, segment_hashtag, preproc
 
         #tokenizer.add_tokens([w.strip() for w in open('../resources/log_odds.txt').readlines()])
 
+        # TODO: this is not saved when calling `save_pretrained`
         if preprocess is not None:
             tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
 

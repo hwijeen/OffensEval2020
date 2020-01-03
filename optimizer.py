@@ -1,21 +1,59 @@
 import re
+import logging
+
 from transformers import AdamW, get_linear_schedule_with_warmup, get_constant_schedule
 
-# TODO: training strategy
-def build_optimizer_scheduler(model, lr, betas, eps, warmup_ratio, weight_decay,
-                              layer_decrease, train_step):
+logger = logging.getLogger(__name__)
 
-    def set_layer_lr(param_name):
-        m = re.search('[\d]', param_name)
-        return lr * layer_decrease ** (model.model.config.num_hidden_layers - int(m.group())) if m else lr
-
+def apply_wd(dt, model, weight_decay):
     no_decay = ['bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters= []
     for n, p in model.named_parameters():
         wd = weight_decay if not any(nd in n for nd in no_decay) else 0.0
-        lr_ = set_layer_lr(n)
-        param_setting = {'params': p, 'weight_decay': wd, 'lr': lr_}
-        optimizer_grouped_parameters.append(param_setting)
+        dt[n]['weight_decay'] = wd
+    return dt
+
+def apply_disc_lr(dt, model, lr, layer_decrease):
+    total_layer = model.model.config.num_hidden_layers
+    layers_adjusted = set()
+    for n, p in model.named_parameters():
+        m = re.search('[\d]+|embedding', n)
+        if m is None:
+            continue
+        elif m.group() == 'embedding':
+            power = total_layer
+        else:
+            layer_idx = int(m.group())  # 0 to 11
+            power = total_layer - layer_idx - 1
+        lr_ = lr * (layer_decrease ** power)
+        layers_adjusted.add(m.group())
+        dt[n]['lr'] = lr_
+    logger.info(f'Learning rate for layers {sorted(layers_adjusted)} Adjusted!')
+    return dt
+
+def apply_layer_freeze(dt, model, freeze_upto):
+    layers_adjusted = set()
+    for n, p in model.named_parameters():
+        m = re.search('[\d]+|embedding', n)
+        if m is None:
+            continue
+        elif m.group() == 'embedding' or int(m.group()) <= freeze_upto:
+            p.requires_grad = False
+            dt[n]['params'] = p
+            layers_adjusted.add(m.group())
+    logger.info(f'Layers {sorted(layers_adjusted)} are freezed!')
+    return dt
+
+def build_optimizer_scheduler(model, lr, betas, eps, warmup_ratio, weight_decay,
+                              layer_decrease, freeze_upto, train_step):
+    grouped_params = {n: {'params': p, 'lr': lr} for n, p in model.named_parameters()}
+    if weight_decay != 0.0:
+        grouped_params = apply_wd(grouped_params, model, weight_decay)
+    if layer_decrease != 1.0:
+        grouped_params = apply_disc_lr(grouped_params, model, lr, layer_decrease)
+    if freeze_upto != -1:
+        grouped_params = apply_layer_freeze(grouped_params, model, freeze_upto)
+
+    optimizer_grouped_parameters= [param_dict for param_dict in grouped_params.values()]
 
     optimizer = AdamW(optimizer_grouped_parameters, lr, eps=eps, betas=betas, correct_bias=False)
     warmup = train_step * warmup_ratio
