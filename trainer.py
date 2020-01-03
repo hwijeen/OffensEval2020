@@ -1,4 +1,5 @@
 import os
+import logging
 
 import torch
 import torch.nn as nn
@@ -6,8 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from utils import *
 
+logger = logging.getLogger(__name__)
 
-# TODO: logging
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
     def __init__(self, model, patience, savedir, delta=0, mode='max', verbose=False):
@@ -33,7 +34,7 @@ class EarlyStopping:
             self.save_checkpoint()
         elif score < self.best_score + self.delta:
             self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            logger.info(f'EarlyStopping counter: {self.counter} out of {self.patience}')
             if self.counter >= self.patience:
                 self.early_stop = True
         else:
@@ -46,7 +47,7 @@ class EarlyStopping:
         '''Saves model when validation score improves.'''
         curr_score = -self.best_score if self.mode == 'min' else self.best_score
         if self.verbose:
-            print(f'Best score on validation improved ({self.prev_best_score:.6f} -->'
+            logger.info(f'Best score on validation improved ({self.prev_best_score:.6f} -->'
                   f'{curr_score:.6f}). Checkpoint model saved.')
         torch.save(self.model.state_dict(), self.savedir)
         self.prev_best_score = curr_score
@@ -119,11 +120,11 @@ class Trainer:
                 val_f1 = val_metrics[0]
                 self.early_stopper(step, val_f1)
                 if self.early_stopper.early_stop:
-                    print(f'..... Early stopping patience reached at step {step}, terminating training .....')
+                    logger.info(f'..... Early stopping patience reached at step {step}, terminating training .....')
                     return self.finish_training()
 
             if step == train_step:
-                print(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
+                logger.info(f'\n..... Max train step({train_step}) reached, terminating training .....\n')
                 return self.finish_training()
 
     def finish_training(self):

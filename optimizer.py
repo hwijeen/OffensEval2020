@@ -10,7 +10,7 @@ def apply_wd(dt, model, weight_decay):
     for n, p in model.named_parameters():
         wd = weight_decay if not any(nd in n for nd in no_decay) else 0.0
         dt[n]['weight_decay'] = wd
-    return dt
+    return dt, no_decay
 
 def apply_disc_lr(dt, model, lr, layer_decrease):
     total_layer = model.model.config.num_hidden_layers
@@ -27,8 +27,7 @@ def apply_disc_lr(dt, model, lr, layer_decrease):
         lr_ = lr * (layer_decrease ** power)
         layers_adjusted.add(m.group())
         dt[n]['lr'] = lr_
-    logger.info(f'Learning rate for layers {sorted(layers_adjusted)} Adjusted!')
-    return dt
+    return dt, sorted(layers_adjusted)
 
 def apply_layer_freeze(dt, model, freeze_upto):
     layers_adjusted = set()
@@ -40,18 +39,20 @@ def apply_layer_freeze(dt, model, freeze_upto):
             p.requires_grad = False
             dt[n]['params'] = p
             layers_adjusted.add(m.group())
-    logger.info(f'Layers {sorted(layers_adjusted)} are freezed!')
-    return dt
+    return dt, sorted(layers_adjusted)
 
 def build_optimizer_scheduler(model, lr, betas, eps, warmup_ratio, weight_decay,
                               layer_decrease, freeze_upto, train_step):
     grouped_params = {n: {'params': p, 'lr': lr} for n, p in model.named_parameters()}
     if weight_decay != 0.0:
-        grouped_params = apply_wd(grouped_params, model, weight_decay)
+        grouped_params, no_decay = apply_wd(grouped_params, model, weight_decay)
+        logger.info(f'Layer decay applied except for {no_decay}')
     if layer_decrease != 1.0:
-        grouped_params = apply_disc_lr(grouped_params, model, lr, layer_decrease)
+        grouped_params, lr_changed = apply_disc_lr(grouped_params, model, lr, layer_decrease)
+        logger.info(f'Discriminative fintuning - lr adjusted for {lr_changed}')
     if freeze_upto != -1:
-        grouped_params = apply_layer_freeze(grouped_params, model, freeze_upto)
+        grouped_params, freezed = apply_layer_freeze(grouped_params, model, freeze_upto)
+        logger.info(f'The following layers are freezed: {freezed}')
 
     optimizer_grouped_parameters= [param_dict for param_dict in grouped_params.values()]
 
