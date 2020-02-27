@@ -1,12 +1,12 @@
-This is an ongoing project for NLPDove🕊 in OffensEval2020.
+This is an ongoing project for Transferrable Data Selection.
 
 ## Data
 
-Data for OffensEval2019 can be downloaded from the [official OLID dataset page](https://sites.google.com/site/offensevalsharedtask/olid).
-The test data come in 3 files, one for each task. We merged the 3 files data into one so that it has the same format as the train data.
+OffensEval2019: [Official OLID dataset page](https://sites.google.com/site/offensevalsharedtask/olid).
+Data for OffensEval2020: upon request.
 
 ```bash
-python merge_test.py # merge 3 test data into one file
+python merge_test.py # OffensEval2019 - merge 3 test data into one file
 ```
 
 
@@ -15,7 +15,9 @@ python merge_test.py # merge 3 test data into one file
 Below is the command to train a model with some potentially important arguments.
 For exhaustive list of arguments, read `train.py`.
 ```bash
-python train.py --task a \
+python train.py \
+--train_path ../data/olid/da/offenseval-da-training-v1-train.tsv \
+--test_path ../data/olid/da/offenseval-da-training-v1-test.tsv \
 --demojize --lower_hashtag --segment_hashtag --textify_emoji --add_cap_sign \
 --mention_limit 0 --punc_limit 0 \
 --model bert --time_pooling max_avg --layer 12 \

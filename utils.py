@@ -40,7 +40,7 @@ def calc_f1(pred, gold, labels=None, pos_label=1, average='macro'):
     """
     return f1_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
 
-def calc_prec(pred, gold, labels=None, pos_label=1, average='binary'):
+def calc_prec(pred, gold, labels=None, pos_label=1, average='macro'):
     """
     Calculates precision between prediction and gold label.
     For our task, set average='macro'
@@ -48,7 +48,7 @@ def calc_prec(pred, gold, labels=None, pos_label=1, average='binary'):
     """
     return precision_score(y_true=gold, y_pred=pred, labels=labels, pos_label=pos_label, average=average)
 
-def calc_rec(pred, gold, labels=None, pos_label=1, average='binary'):
+def calc_rec(pred, gold, labels=None, pos_label=1, average='macro'):
     """
     Calculates recall between prediction and gold label.
     For our task, set average='macro'
@@ -110,11 +110,37 @@ def write_summary_to_file(summary, file_name):
         print(summary, file=f)
         print('*' * 60, file=f)
 
-def write_args_to_file(args, file_name):
+def write_args_to_file(args, file_name='args.bin'):
     torch.save(args, file_name)
 
 def save_model(model, file_name):
     torch.save(model.state_dict(), file_name)
+
+def load_model(model, exp_note, file_name='best_model.pt'):
+    exp_name = find_exp(exp_note)
+    model_file = os.path.join(exp_name, file_name)
+    model.load_state_dict(torch.load(model_file))
+    return model
+
+def find_exp(exp_note, run_num=0):
+    exp_dir = 'runs/'
+    exp_paths = listdir_fullpath(exp_dir)
+    exp_notes = ['_'.join(d.split('_')[16:]) for d in exp_paths]
+    try:
+        exp_id = exp_notes.index(exp_note)
+        exp_path = exp_paths[exp_id]
+    except ValueError:
+        raise Exception(f'No such exp as {exp_note}')
+    exp_path = listdir_fullpath(exp_path)[run_num]
+    print(f'Accessing exp: {exp_path}')
+    return exp_path
+
+def listdir_fullpath(d):
+    return [os.path.join(d, f) for f in os.listdir(d)]
+
+def load_args_from_file(exp_note, file_name='args.bin'):
+    exp_path = find_exp(exp_note)
+    return torch.load(os.path.join(exp_path, file_name))
 
 def save_tokenizer(tokenizer, dir_name):
     """This writes `added_tokens.json`, `special_tokens_map.json`,

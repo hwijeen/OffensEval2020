@@ -1,15 +1,13 @@
 import logging
+
 import random
 from functools import partial
 
 import torch
 from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 
-random.seed(0)
-state = random.getstate()
 
 logger = logging.getLogger(__name__)
-task_to_col_idx = {'a':2, 'b':3, 'c':4}
 
 class TransformersField(Field):
     """ Overrides torchtext.data.Field.process to use Tokenizer.encode as a numericalization function"""
@@ -31,34 +29,33 @@ class TransformersField(Field):
 
 class Data(object):
     """Build field, dataset, and then data iterators. """
-    def __init__(self, train_path, task, preprocessing, tokenizer,
-                 batch_size, device, test_path=None):
-        self.task = task
+    def __init__(self, preprocessing, tokenizer,
+                 batch_size, device, train_path=None, test_path=None):
         self.device = device
-        self.fields = self.build_field(task, tokenizer, preprocessing)
-        train, val = self.build_dataset(train_path)
-        self.train_iter, self.val_iter = self.build_iterator((train, val), batch_size, device)
+        self.fields = self.build_field(tokenizer, preprocessing)
+        if train_path is not None:
+            train, val = self.build_dataset(train_path)
+            self.train_iter, self.val_iter = self.build_iterator((train, val), batch_size, device)
+            self.build_vocab(train, val)
         if test_path is not None:
             test = self.build_dataset(test_path, istest=True)
             self.test_iter = self.build_iterator(test, batch_size, device, istest=True)
-        self.build_vocab(train, val)
+            test.fields['label'].build_vocab(test)
 
-    def build_field(self, task, tokenizer, preprocessing):
+    def build_field(self, tokenizer, preprocessing):
         ID = RawField()
         TWEET = Field(preprocessing=preprocessing, batch_first=True)
-        fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
-                  ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None, is_target=True)
-        fields[task_to_col_idx[task]] = ('label', LABEL)
+        fields = [('id', ID), ('tweet', TWEET), ('label', LABEL)]
         return fields
 
     def build_dataset(self, data_path, istest=False):
-        dataset = TabularDataset(data_path, 'tsv', self.fields,
-                                 skip_header=True,
-                                 filter_pred=lambda x: x.label != 'NULL')
+        dataset = TabularDataset(data_path, 'tsv', self.fields, skip_header=True)
         if istest:
             return dataset
         else:
+            random.seed(0)
+            state = random.getstate()
             return dataset.split(split_ratio=0.9, stratified=True, random_state=state)
 
     def build_vocab(self, train, val):
@@ -85,7 +82,7 @@ class TransformersData(Data):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def build_field(self, task, tokenizer, preprocessing):
+    def build_field(self, tokenizer, preprocessing):
         """Use custom defined TransformerField which is an extension of torchtext.Field"""
         ID = RawField()
         TWEET = TransformersField(tokenizer, include_lengths=True,
@@ -93,10 +90,8 @@ class TransformersData(Data):
                                   preprocessing=preprocessing,
                                   tokenize=tokenizer.tokenize,
                                   pad_token=tokenizer.pad_token_id) # id
-        fields = [('id', ID), ('tweet', TWEET), ('NULL', None),
-                  ('NULL', None), ('NULL', None)]
         LABEL = Field(sequential=False, unk_token=None, pad_token=None)
-        fields[task_to_col_idx[task]] = ('label', LABEL)
+        fields = [('id', ID), ('tweet', TWEET), ('label', LABEL)]
         return fields
 
     def build_vocab(self, train, val):
@@ -105,7 +100,7 @@ class TransformersData(Data):
 
 
 def build_data(model, *args, **kwargs):
-    if model in {'bert', 'roberta', 'xlm', 'xlnet'}:
+    if model in {'mbert', 'xlm'}:
         return TransformersData(*args, **kwargs)
     else:
         return Data(*args, **kwargs)

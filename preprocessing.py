@@ -89,29 +89,24 @@ def build_preprocess(demojize, textify_emoji, mention_limit, punc_limit, lower_h
 # TODO: consider using Config
 # TODO: Fix hard code of model names(also in build_model)
 def build_tokenizer(model, add_cap_sign, textify_emoji, segment_hashtag, preprocess):
-    tokenizer_dict = {'bert': BertTokenizer.from_pretrained('bert-base-uncased')}
-                      #'roberta': RobertaTokenizer.from_pretrained('roberta-base'),
-                      #'xlm': XLMTokenizer.from_pretrained('xlm-mlm-en-2048'),
-                      #'xlnet': XLNetTokenizer.from_pretrained('xlnet-base-cased')}
-    if model in tokenizer_dict:
-        tokenizer = tokenizer_dict[model]
-        tokenizer.add_tokens(['@USER']) # All Transformers models
+    if model == 'mbert':
+        tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased')
+    elif model =='xlm':
+        tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-100-1280')
 
-        if add_cap_sign:
-            tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
-        if textify_emoji:
-            tokenizer.add_tokens(['<emoji>', '</emoji>'])
-        if segment_hashtag:
-            tokenizer.add_tokens(['<hashtag>', '</hashtag>'])
+    tokenizer.add_tokens(['@USER']) # All Transformers models
 
-        #tokenizer.add_tokens([w.strip() for w in open('../resources/log_odds.txt').readlines()])
+    if add_cap_sign:
+        tokenizer.add_tokens(['<has_cap>', '<all_cap>'])
+    if textify_emoji:
+        tokenizer.add_tokens(['<emoji>', '</emoji>'])
+    if segment_hashtag:
+        tokenizer.add_tokens(['<hashtag>', '</hashtag>'])
 
-        # TODO: this is not saved when calling `save_pretrained`
-        if preprocess is not None:
-            tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
+    #tokenizer.add_tokens([w.strip() for w in open('../resources/log_odds.txt').readlines()])
 
-    # TODO: when not using bert
-    else:
-        pass
+    # TODO: this is not saved when calling `save_pretrained`
+    if preprocess is not None:
+        tokenizer.tokenize = compose(preprocess, tokenizer.tokenize)
 
     return tokenizer

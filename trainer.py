@@ -115,7 +115,8 @@ class Trainer:
                     print(f'At step: {step}')
                     self.report('train', *train_metrics, loss=loss)
                     self.report('val', *val_metrics, loss=val_loss)
-                    self.report('test', *test_metrics)
+                    if self.test_iter is not None:
+                        self.report('test', *test_metrics)
 
                 val_f1 = val_metrics[0]
                 self.early_stopper(step, val_f1)
@@ -176,6 +177,22 @@ class Trainer:
         acc = calc_acc(predictions, golds)
         data_iter.repeat = True
         return f1, prec, rec, acc
+
+def evaluate(model, data_iter):
+    model.eval()
+    data_iter.repeat = False
+    predictions, golds = [], []
+    with torch.no_grad():
+        for batch in data_iter:
+            pred = model.predict(*batch.tweet)
+            predictions += pred.tolist()
+            golds += batch.label.tolist()
+    f1 = calc_f1(predictions, golds)
+    prec = calc_prec(predictions, golds)
+    rec = calc_rec(predictions, golds)
+    acc = calc_acc(predictions, golds)
+    data_iter.repeat = True
+    return f1, prec, rec, acc
 
 
 # TODO: make verbose an option

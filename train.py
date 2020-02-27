@@ -20,14 +20,11 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     datefmt = '%m/%d/%Y %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# TODO: inference.py with test data
-# TODO: defaults to None when no testdata available
 def parse_args():
     parser = argparse.ArgumentParser()
     data = parser.add_argument_group('Data')
-    data.add_argument('--task', choices=['a', 'b', 'c'], default='a')
-    data.add_argument('--train_path', default='../data/olid-training-v1.0.tsv')
-    data.add_argument('--test_path', default='../data/olid-test-v1.0.tsv')
+    data.add_argument('--train_path', default='../data/olid/da/offenseval-da-training-v1-train.tsv')
+    data.add_argument('--test_path', default='../data/olid/da/offenseval-da-training-v1-test.tsv')
 
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--demojize', action='store_true')
@@ -39,7 +36,7 @@ def parse_args():
     preprocess.add_argument('--punc_limit', type=int, default=3)
 
     model = parser.add_argument_group('Model options')
-    model.add_argument('--model', choices=['bert', 'roberta', 'xlm', 'xlnet'], default='bert')
+    model.add_argument('--model', choices=['mbert', 'xlm'], default='mbert')
     model.add_argument('--time_pooling', choices=['cls', 'avg', 'max', 'max_avg'], default='max_avg')
     model.add_argument('--layer_pooling', choices=['avg', 'weight', 'max', 'cat'], default='cat')
     model.add_argument('--layer', type=int, choices=range(1, 13), nargs='+', default=[12])
@@ -75,15 +72,15 @@ def parse_args():
     return args
 
 def generate_exp_name(args, preprocessing=True, modeling=True, optim_schedule=True, training=False):
-    to_include = [f'{args.task}'.upper()]
+    to_include = []
 
-    if preprocessing:
-        demojize = f'Demoji:{str(args.demojize)}'
-        lower_hashtag = f'LowHash:{str(args.lower_hashtag)}'
-        add_cap_sign = f'CapSign:{str(args.add_cap_sign)}'
-        segment_hashtag = f'SegHash:{str(args.segment_hashtag)}'
-        textify_emoji = f'TextEmoji:{str(args.textify_emoji)}'
-        to_include.append('_'.join([demojize, lower_hashtag, add_cap_sign, segment_hashtag, textify_emoji]))
+    # if preprocessing:
+    #     demojize = f'Demoji:{str(args.demojize)}'
+    #     lower_hashtag = f'LowHash:{str(args.lower_hashtag)}'
+    #     add_cap_sign = f'CapSign:{str(args.add_cap_sign)}'
+    #     segment_hashtag = f'SegHash:{str(args.segment_hashtag)}'
+    #     textify_emoji = f'TextEmoji:{str(args.textify_emoji)}'
+    #     to_include.append('_'.join([demojize, lower_hashtag, add_cap_sign, segment_hashtag, textify_emoji]))
 
     if modeling:
         model = f'{args.model}'.replace('/', '_').upper() # for `some/checkpoint`
@@ -101,11 +98,11 @@ def generate_exp_name(args, preprocessing=True, modeling=True, optim_schedule=Tr
         layer_decrease = f'LayerDec:{args.layer_decrease}'
         to_include.append('_'.join([lr, warmup_ratio, decay, layer_decrease]))
 
-    if training:
-        batch = f'Batch:{args.batch_size}'
-        train = f'Train:{args.train_step}'
-        patience = f'Patience:{args.patience}'
-        to_include.append('_'.join([batch, train, patience]))
+     # if training:
+     #     batch = f'Batch:{args.batch_size}'
+     #     train = f'Train:{args.train_step}'
+     #     patience = f'Patience:{args.patience}'
+     #     to_include.append('_'.join([batch, train, patience]))
 
     to_include.append('_'.join([args.note]))
     return '_'.join(to_include)
@@ -126,16 +123,15 @@ if __name__ == "__main__":
                                 textify_emoji=args.textify_emoji,
                                 segment_hashtag=args.segment_hashtag,
                                 preprocess=preprocess)
+    preproc = lambda x: x[:509]
     olid_data = build_data(model=args.model,
                            train_path=args.train_path,
-                           task=args.task,
-                           preprocessing=None,
+                           preprocessing=preproc,
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
                            device=args.device,
                            test_path=args.test_path)
-    model = build_model(task=args.task,
-                        model=args.model,
+    model = build_model(model=args.model,
                         time_pooling=args.time_pooling,
                         layer_pooling=args.layer_pooling,
                         layer=args.layer,
