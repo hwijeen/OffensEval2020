@@ -24,7 +24,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     data = parser.add_argument_group('Data')
     data.add_argument('--train_path', default='../data/olid/da/offenseval-da-training-v1-train.tsv')
-    data.add_argument('--test_path', default='../data/olid/da/offenseval-da-training-v1-test.tsv')
+    data.add_argument('--val_path', default='../data/olid/da/offenseval-da-training-v1-test.tsv')
+    data.add_argument('--test_path', default=None)
 
     preprocess = parser.add_argument_group('Preprocessing options')
     preprocess.add_argument('--demojize', action='store_true')
@@ -82,27 +83,27 @@ def generate_exp_name(args, preprocessing=True, modeling=True, optim_schedule=Tr
     #     textify_emoji = f'TextEmoji:{str(args.textify_emoji)}'
     #     to_include.append('_'.join([demojize, lower_hashtag, add_cap_sign, segment_hashtag, textify_emoji]))
 
-    if modeling:
-        model = f'{args.model}'.replace('/', '_').upper() # for `some/checkpoint`
-        time_pool = f'TimePool:{args.time_pooling}'
-        layer_pool = f'LayerPool:{args.layer_pooling}'
-        layer = 'Layer:' + ','.join(map(str, args.layer))
-        attn_dropout = f'AttnDrop:{args.attention_probs_dropout_prob}'
-        hidden_dropout = f'HidDrop:{args.hidden_dropout_prob}'
-        to_include.append('_'.join([model, time_pool, layer_pool, layer, attn_dropout, hidden_dropout]))
+    # if modeling:
+    #     model = f'{args.model}'.replace('/', '_').upper() # for `some/checkpoint`
+    #     time_pool = f'TimePool:{args.time_pooling}'
+    #     layer_pool = f'LayerPool:{args.layer_pooling}'
+    #     layer = 'Layer:' + ','.join(map(str, args.layer))
+    #     attn_dropout = f'AttnDrop:{args.attention_probs_dropout_prob}'
+    #     hidden_dropout = f'HidDrop:{args.hidden_dropout_prob}'
+    #     to_include.append('_'.join([model, time_pool, layer_pool, layer, attn_dropout, hidden_dropout]))
 
-    if optim_schedule:
-        lr = f'Lr:{args.lr}'
-        warmup_ratio = f'WarmUp:{args.warmup_ratio}'
-        decay = f'Decay:{args.weight_decay}'
-        layer_decrease = f'LayerDec:{args.layer_decrease}'
-        to_include.append('_'.join([lr, warmup_ratio, decay, layer_decrease]))
+    # if optim_schedule:
+    #     lr = f'Lr:{args.lr}'
+    #     warmup_ratio = f'WarmUp:{args.warmup_ratio}'
+    #     decay = f'Decay:{args.weight_decay}'
+    #     layer_decrease = f'LayerDec:{args.layer_decrease}'
+    #     to_include.append('_'.join([lr, warmup_ratio, decay, layer_decrease]))
 
-     # if training:
-     #     batch = f'Batch:{args.batch_size}'
-     #     train = f'Train:{args.train_step}'
-     #     patience = f'Patience:{args.patience}'
-     #     to_include.append('_'.join([batch, train, patience]))
+    # if training:
+    #     batch = f'Batch:{args.batch_size}'
+    #     train = f'Train:{args.train_step}'
+    #     patience = f'Patience:{args.patience}'
+    #     to_include.append('_'.join([batch, train, patience]))
 
     to_include.append('_'.join([args.note]))
     return '_'.join(to_include)
@@ -124,13 +125,13 @@ if __name__ == "__main__":
                                 segment_hashtag=args.segment_hashtag,
                                 preprocess=preprocess)
     preproc = lambda x: x[:509]
-    olid_data = build_data(model=args.model,
-                           train_path=args.train_path,
+    olid_data = build_data(train_path=args.train_path,
+                           val_path=args.val_path,
+                           test_path=args.test_path,
                            preprocessing=preproc,
                            tokenizer=tokenizer,
                            batch_size=args.batch_size,
-                           device=args.device,
-                           test_path=args.test_path)
+                           device=args.device)
     model = build_model(model=args.model,
                         time_pooling=args.time_pooling,
                         layer_pooling=args.layer_pooling,

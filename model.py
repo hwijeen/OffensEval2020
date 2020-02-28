@@ -104,13 +104,15 @@ class PoolClassifier(nn.Module):
 
 
 # TODO: fix hardcoding of model names(need to be compatible with preprocessing)
-def build_model(model, time_pooling, layer_pooling, layer,
-                new_num_tokens, device, **kwargs):
+def build_model(model, time_pooling, layer_pooling, layer, new_num_tokens,
+                device, **kwargs):
     n_class = 2
     if model == 'mbert':
-        base_model = BertModel.from_pretrained('bert-base-multilingual-uncased', output_hidden_states=True, **kwargs)
+        base_model = BertModel.from_pretrained('bert-base-multilingual-uncased',
+                                               output_hidden_states=True, **kwargs)
     elif model == 'xlm':
-        base_model = XLMModel.from_pretrained('xlm-mlm-100-1280', output_hidden_states=True, **kwargs)
+        base_model = XLMModel.from_pretrained('xlm-mlm-100-1280',
+                                              output_hidden_states=True, **kwargs)
     base_model.resize_token_embeddings(new_num_tokens) # All transformers models
 
     model = PoolClassifier(base_model, n_class, time_pooling, layer_pooling, layer)

@@ -9,6 +9,7 @@ from torchtext.data import RawField, Field, TabularDataset, BucketIterator
 
 logger = logging.getLogger(__name__)
 
+
 class TransformersField(Field):
     """ Overrides torchtext.data.Field.process to use Tokenizer.encode as a numericalization function"""
     def __init__(self, tokenizer, *args, **kwargs):
@@ -27,60 +28,17 @@ class TransformersField(Field):
         return padded, lengths
 
 
-class Data(object):
-    """Build field, dataset, and then data iterators. """
-    def __init__(self, preprocessing, tokenizer,
-                 batch_size, device, train_path=None, test_path=None):
+class TransformersData:
+    """Data format for Transformers model. """
+    def __init__(self, preprocessing, tokenizer, batch_size, device,
+                 train_path=None, val_path=None, test_path=None):
         self.device = device
         self.fields = self.build_field(tokenizer, preprocessing)
-        if train_path is not None:
-            train, val = self.build_dataset(train_path)
-            self.train_iter, self.val_iter = self.build_iterator((train, val), batch_size, device)
-            self.build_vocab(train, val)
-        if test_path is not None:
-            test = self.build_dataset(test_path, istest=True)
-            self.test_iter = self.build_iterator(test, batch_size, device, istest=True)
-            test.fields['label'].build_vocab(test)
-
-    def build_field(self, tokenizer, preprocessing):
-        ID = RawField()
-        TWEET = Field(preprocessing=preprocessing, batch_first=True)
-        LABEL = Field(sequential=False, unk_token=None, pad_token=None, is_target=True)
-        fields = [('id', ID), ('tweet', TWEET), ('label', LABEL)]
-        return fields
-
-    def build_dataset(self, data_path, istest=False):
-        dataset = TabularDataset(data_path, 'tsv', self.fields, skip_header=True)
-        if istest:
-            return dataset
-        else:
-            random.seed(0)
-            state = random.getstate()
-            return dataset.split(split_ratio=0.9, stratified=True, random_state=state)
-
-    def build_vocab(self, train, val):
-        train.fields['tweet'].build_vocab(train, val)
-        train.fields['label'].build_vocab(train, val)
-
-    # TODO: enable loading only test data
-    def build_iterator(self, dataset, batch_size, device, istest=False):
-        if istest:
-            return BucketIterator(dataset, batch_size=batch_size,
-                                  sort_key=lambda x: len(x.tweet),
-                                  sort_within_batch=True, repeat=True,
-                                  device=device)
-        else:
-            train, val = dataset
-            return BucketIterator.splits((train, val), batch_size=batch_size,
-                                         sort_key=lambda x: len(x.tweet),
-                                         sort_within_batch=True, repeat=True,
-                                         device=device)
-
-
-class TransformersData(Data):
-    """Data format for Transformers model. """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.train, self.val, self.test =\
+            self.build_dataset(train_path, val_path, test_path)
+        self.train_iter, self.val_iter, self.test_iter =\
+            self.build_iterator(batch_size, device)
+        self.build_vocab()
 
     def build_field(self, tokenizer, preprocessing):
         """Use custom defined TransformerField which is an extension of torchtext.Field"""
@@ -94,13 +52,52 @@ class TransformersData(Data):
         fields = [('id', ID), ('tweet', TWEET), ('label', LABEL)]
         return fields
 
-    def build_vocab(self, train, val):
+    def build_dataset(self, train_path, val_path, test_path):
+        train = val = test = None
+        if train_path is not None:
+            train = TabularDataset(train_path, 'tsv', self.fields,
+                                   skip_header=True)
+
+        if val_path is None:
+            random.seed(0)
+            state = random.getstate()
+            train, val = train.split(split_ratio=0.9, stratified=True,
+                                       random_state=state)
+        else:
+            val = TabularDataset(val_path, 'tsv', self.fields,
+                                   skip_header=True)
+
+        if test_path is not None:
+            test = TabularDataset(test_path, 'tsv', self.fields,
+                                  skip_header=True)
+        return train, val, test
+
+    def build_iterator(self, batch_size, device):
+        train_iter = val_iter = test_iter = None
+        if self.train is not None:
+            train_iter = BucketIterator(self.train, batch_size=batch_size,
+                                        sort_key=lambda x: len(x.tweet),
+                                        sort_within_batch=True, repeat=True,
+                                        device=device)
+        if self.val is not None:
+            val_iter = BucketIterator(self.val, batch_size=batch_size,
+                                      sort_key=lambda x: len(x.tweet),
+                                      sort_within_batch=True, repeat=True,
+                                      device=device, train=False)
+        if self.test is not None:
+            test_iter = BucketIterator(self.test, batch_size=batch_size,
+                                      sort_key=lambda x: len(x.tweet),
+                                      sort_within_batch=True, repeat=True,
+                                      device=device, train=False)
+        return train_iter, val_iter, test_iter
+
+    def build_vocab(self):
         """Does not make vocab for TWEET field as it is given by Transformers models"""
-        train.fields['label'].build_vocab(train, val)
+        if self.train is not None and self.val is not None:
+            self.train.fields['label'].build_vocab(self.train, self.val)
+        elif self.test is not None:
+            self.test.fields['label'].build_vocab(self.test)
 
 
-def build_data(model, *args, **kwargs):
-    if model in {'mbert', 'xlm'}:
-        return TransformersData(*args, **kwargs)
-    else:
-        return Data(*args, **kwargs)
+def build_data(*args, **kwargs):
+    return TransformersData(*args, **kwargs)
